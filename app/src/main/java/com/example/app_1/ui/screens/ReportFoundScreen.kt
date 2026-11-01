@@ -67,7 +67,7 @@ fun ReportFoundScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(Color.White)
+            .background(Color.White),
     ) {
         // Top Bar Row
         Row(

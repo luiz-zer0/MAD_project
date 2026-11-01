@@ -66,7 +66,7 @@ fun MainApp() {
                         icon = {
                             Icon(
                                 imageVector = destination.icon,
-                                contentDescription = destination.label
+                                contentDescription = destination.label,
                             )
                         },
                         label = {

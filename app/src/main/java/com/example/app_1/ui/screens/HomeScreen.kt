@@ -53,7 +53,7 @@ fun HomeScreen(
             .verticalScroll(rememberScrollState())
             .background(Color(0xFFF8FAFC))
             .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         // Top Header Row
         Row(
