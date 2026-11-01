@@ -25,7 +25,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.app_1.ui.navigation.AppNavDestination
 import com.example.app_1.ui.navigation.Screen
+import com.example.app_1.ui.screens.CategoryDetailsScreen
 import com.example.app_1.ui.screens.HomeScreen
+import com.example.app_1.ui.screens.MyReportsScreen
+import com.example.app_1.ui.screens.PossibleMatchesScreen
 import com.example.app_1.ui.screens.ReportFoundScreen
 import com.example.app_1.ui.screens.ReportLostScreen
 import com.example.app_1.ui.theme.App_1Theme
@@ -48,8 +51,8 @@ fun MainApp() {
 
     val activeNavDestination = when (currentScreen) {
         Screen.HOME -> AppNavDestination.HOME
-        Screen.REPORT_LOST, Screen.REPORT_FOUND, Screen.REPORTS -> AppNavDestination.REPORTS
-        Screen.MATCHES -> AppNavDestination.MATCHES
+        Screen.REPORT_LOST, Screen.REPORT_FOUND, Screen.CATEGORY_DETAILS, Screen.MY_REPORTS, Screen.REPORTS -> AppNavDestination.REPORTS
+        Screen.POSSIBLE_MATCHES, Screen.MATCHES -> AppNavDestination.MATCHES
         Screen.ALERTS -> AppNavDestination.ALERTS
     }
 
@@ -62,7 +65,14 @@ fun MainApp() {
                 AppNavDestination.entries.forEach { destination ->
                     NavigationBarItem(
                         selected = activeNavDestination == destination,
-                        onClick = { currentScreen = destination.screen },
+                        onClick = {
+                            currentScreen = when (destination) {
+                                AppNavDestination.HOME -> Screen.HOME
+                                AppNavDestination.REPORTS -> Screen.MY_REPORTS
+                                AppNavDestination.MATCHES -> Screen.POSSIBLE_MATCHES
+                                AppNavDestination.ALERTS -> Screen.ALERTS
+                            }
+                        },
                         icon = {
                             Icon(
                                 imageVector = destination.icon,
@@ -73,7 +83,7 @@ fun MainApp() {
                             Text(
                                 text = destination.label,
                                 fontSize = 11.sp,
-                                fontWeight = if (activeNavDestination == destination) FontWeight.Bold else FontWeight.Normal
+                                fontWeight = if (activeNavDestination == destination) FontWeight.Bold else FontWeight.Normal,
                             )
                         },
                         colors = NavigationBarItemDefaults.colors(
@@ -81,8 +91,8 @@ fun MainApp() {
                             selectedTextColor = Color(0xFF1D4ED8),
                             unselectedIconColor = Color.Gray,
                             unselectedTextColor = Color.Gray,
-                            indicatorColor = Color(0xFFEFF6FF)
-                        )
+                            indicatorColor = Color(0xFFEFF6FF),
+                        ),
                     )
                 }
             }
@@ -91,29 +101,35 @@ fun MainApp() {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
+                .padding(innerPadding),
         ) {
             when (currentScreen) {
                 Screen.HOME -> HomeScreen(
                     onNavigateToReportLost = { currentScreen = Screen.REPORT_LOST },
-                    onNavigateToReportFound = { currentScreen = Screen.REPORT_FOUND }
+                    onNavigateToReportFound = { currentScreen = Screen.REPORT_FOUND },
                 )
                 Screen.REPORT_LOST -> ReportLostScreen(
-                    onBack = { currentScreen = Screen.HOME }
+                    onBack = { currentScreen = Screen.HOME },
+                    onContinueToDetails = { currentScreen = Screen.CATEGORY_DETAILS },
                 )
                 Screen.REPORT_FOUND -> ReportFoundScreen(
-                    onBack = { currentScreen = Screen.HOME }
+                    onBack = { currentScreen = Screen.HOME },
+                    onContinueToDetails = { currentScreen = Screen.CATEGORY_DETAILS },
                 )
-                Screen.REPORTS -> ReportLostScreen(
-                    onBack = { currentScreen = Screen.HOME }
+                Screen.CATEGORY_DETAILS -> CategoryDetailsScreen(
+                    onBack = { currentScreen = Screen.REPORT_LOST },
+                    onSubmitReport = { currentScreen = Screen.MY_REPORTS },
                 )
-                Screen.MATCHES -> HomeScreen(
-                    onNavigateToReportLost = { currentScreen = Screen.REPORT_LOST },
-                    onNavigateToReportFound = { currentScreen = Screen.REPORT_FOUND }
+                Screen.MY_REPORTS, Screen.REPORTS -> MyReportsScreen(
+                    onNavigateToNewReport = { currentScreen = Screen.REPORT_LOST },
+                    onReviewMatches = { currentScreen = Screen.POSSIBLE_MATCHES },
+                )
+                Screen.POSSIBLE_MATCHES, Screen.MATCHES -> PossibleMatchesScreen(
+                    onBack = { currentScreen = Screen.MY_REPORTS },
                 )
                 Screen.ALERTS -> HomeScreen(
                     onNavigateToReportLost = { currentScreen = Screen.REPORT_LOST },
-                    onNavigateToReportFound = { currentScreen = Screen.REPORT_FOUND }
+                    onNavigateToReportFound = { currentScreen = Screen.REPORT_FOUND },
                 )
             }
         }

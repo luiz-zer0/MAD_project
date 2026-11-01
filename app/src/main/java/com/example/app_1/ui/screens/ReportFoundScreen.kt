@@ -56,6 +56,7 @@ import com.example.app_1.ui.theme.App_1Theme
 fun ReportFoundScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
+    onContinueToDetails: () -> Unit = {},
 ) {
     var category by rememberSaveable { mutableStateOf("Keys") }
     var description by rememberSaveable {
@@ -330,7 +331,7 @@ fun ReportFoundScreen(
 
             // Submit Button
             Button(
-                onClick = { /* Continue */ },
+                onClick = onContinueToDetails,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp),

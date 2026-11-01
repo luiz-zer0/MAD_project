@@ -11,9 +11,12 @@ enum class Screen {
     HOME,
     REPORT_LOST,
     REPORT_FOUND,
+    CATEGORY_DETAILS,
+    MY_REPORTS,
+    POSSIBLE_MATCHES,
     REPORTS,
     MATCHES,
-    ALERTS
+    ALERTS,
 }
 
 enum class AppNavDestination(
