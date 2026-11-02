@@ -51,6 +51,9 @@ fun MyReportsScreen(
     onNavigateToNewReport: () -> Unit,
     onReviewMatches: () -> Unit,
     modifier: Modifier = Modifier,
+    hasClaimPreview: Boolean = false,
+    claimPreviewTitle: String = "Navy backpack",
+    onViewClaimStatus: () -> Unit = {},
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
 
@@ -236,6 +239,33 @@ fun MyReportsScreen(
                                     modifier = Modifier.size(14.dp),
                                 )
                             }
+                        }
+                    }
+                }
+            }
+
+            if (hasClaimPreview && selectedTab == 0) {
+                Card(
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("CLAIM PREVIEW · NOT SUBMITTED", color = Color(0xFF9A6700),
+                                fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            Text(claimPreviewTitle, color = Color(0xFF0F2942),
+                                fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                            Text("Your answers were not sent to the office", color = Color.Gray,
+                                fontSize = 11.sp)
+                        }
+                        TextButton(onClick = onViewClaimStatus) {
+                            Text("View", color = Color(0xFF1D4ED8), fontSize = 12.sp)
                         }
                     }
                 }

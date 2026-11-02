@@ -47,6 +47,7 @@ fun PossibleMatchesScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
     hasMatches: Boolean = true,
+    onViewCandidate: (String) -> Unit = {},
 ) {
     Column(
         modifier = modifier
@@ -171,16 +172,20 @@ fun PossibleMatchesScreen(
 
                 // Match Candidate 1
                 CandidateItemCard(
+                    candidateId = "navy-backpack",
                     title = "Navy backpack",
                     locationDate = "Library • 14 Oct",
                     matchReason = "Similar category, colour & date",
+                    onViewCandidate = onViewCandidate,
                 )
 
                 // Match Candidate 2
                 CandidateItemCard(
+                    candidateId = "dark-backpack",
                     title = "Dark backpack",
                     locationDate = "Student Centre • 15 Oct",
                     matchReason = "Similar category & colour",
+                    onViewCandidate = onViewCandidate,
                 )
             } else {
                 // No Matches Yet Section
@@ -231,9 +236,11 @@ fun PossibleMatchesScreen(
 
 @Composable
 private fun CandidateItemCard(
+    candidateId: String,
     title: String,
     locationDate: String,
     matchReason: String,
+    onViewCandidate: (String) -> Unit,
 ) {
     Card(
         shape = RoundedCornerShape(16.dp),
@@ -323,7 +330,7 @@ private fun CandidateItemCard(
                     color = Color.Gray,
                 )
 
-                TextButton(onClick = { /* View details */ }) {
+                TextButton(onClick = { onViewCandidate(candidateId) }) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             text = "View details",

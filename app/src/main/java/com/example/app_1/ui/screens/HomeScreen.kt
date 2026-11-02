@@ -46,6 +46,8 @@ fun HomeScreen(
     onNavigateToReportLost: () -> Unit,
     onNavigateToReportFound: () -> Unit,
     modifier: Modifier = Modifier,
+    onOpenNotifications: () -> Unit = {},
+    onOpenOfficePreview: () -> Unit = {},
 ) {
     Column(
         modifier = modifier
@@ -295,7 +297,7 @@ fun HomeScreen(
                 fontSize = 16.sp,
                 color = Color(0xFF0F2942)
             )
-            TextButton(onClick = { /* View all */ }) {
+            TextButton(onClick = onOpenNotifications) {
                 Text(
                     text = "View all",
                     fontSize = 13.sp,
@@ -413,6 +415,10 @@ fun HomeScreen(
                     )
                 }
             }
+        }
+        TextButton(onClick = onOpenOfficePreview, modifier = Modifier.fillMaxWidth()) {
+            Text("Open office workflow preview  →", color = Color(0xFF1D4ED8),
+                fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
         }
     }
 }
