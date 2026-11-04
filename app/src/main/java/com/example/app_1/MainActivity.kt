@@ -251,4 +251,53 @@ private fun OfficeBottomBar(
             )
         }
     }
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+
+        val emailInputLayout = findViewById<TextInputLayout>(R.id.emailInputLayout)
+        val emailEditText = findViewById<TextInputEditText>(R.id.emailEditText)
+        val passwordInputLayout = findViewById<TextInputLayout>(R.id.passwordInputLayout)
+        val passwordEditText = findViewById<TextInputEditText>(R.id.passwordEditText)
+        val loginButton = findViewById<MaterialButton>(R.id.loginButton)
+
+        loginButton.setOnClickListener {
+            val email = emailEditText.text.toString().trim()
+            val password = passwordEditText.text.toString()
+
+            emailInputLayout.error = null
+            passwordInputLayout.error = null
+
+            var isValid = true
+
+            if (email.isEmpty()) {
+                emailInputLayout.error = getString(R.string.error_email_required)
+                isValid = false
+            } else if (!Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+                emailInputLayout.error = getString(R.string.error_email_invalid)
+                isValid = false
+            }
+
+            if (password.isEmpty()) {
+                passwordInputLayout.error = getString(R.string.error_password_required)
+                isValid = false
+            } else if (password.length < 6) {
+                passwordInputLayout.error = getString(R.string.error_password_short)
+                isValid = false
+            }
+
+            if (isValid) {
+                // Demo rule: emails containing "office" or "staff" open the office side
+                if (email.lowercase().contains("office") || email.lowercase().contains("staff")) {
+                    openOffice("office")
+                } else {
+                    openStudent("home")
+                }
+                finish()
+            }
+        }
+
+        // TODO: "Don't have an account? Sign up" link.
+        // Send me your activity_main.xml so I can add it with the right id.
+    }
 }
