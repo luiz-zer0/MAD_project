@@ -30,6 +30,10 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -49,6 +53,10 @@ fun PossibleMatchesScreen(
     hasMatches: Boolean = true,
     onViewCandidate: (String) -> Unit = {},
 ) {
+    var newestFirst by remember { mutableStateOf(false) }
+    val candidates = if (hasMatches) {
+        if (newestFirst) sampleCandidates.sortedByDescending { it.reportedAt } else sampleCandidates
+    } else emptyList()
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -98,7 +106,7 @@ fun PossibleMatchesScreen(
                     verticalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
                     Text(
-                        text = "FOR YOUR LOST REPORT",
+                        text = "SAMPLE LOST REPORT",
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFFEAB308),
@@ -155,14 +163,14 @@ fun PossibleMatchesScreen(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = "2 items to review",
+                        text = "${candidates.size} items to review",
                         fontWeight = FontWeight.Bold,
                         fontSize = 15.sp,
                         color = Color(0xFF0F2942),
                     )
-                    TextButton(onClick = { /* Sort */ }) {
+                    TextButton(onClick = { newestFirst = !newestFirst }) {
                         Text(
-                            text = "Newest first",
+                            text = if (newestFirst) "Newest first" else "Suggested order",
                             fontSize = 12.sp,
                             color = Color(0xFF1D4ED8),
                             fontWeight = FontWeight.Medium,
@@ -171,22 +179,9 @@ fun PossibleMatchesScreen(
                 }
 
                 // Match Candidate 1
-                CandidateItemCard(
-                    candidateId = "navy-backpack",
-                    title = "Navy backpack",
-                    locationDate = "Library • 14 Oct",
-                    matchReason = "Similar category, colour & date",
-                    onViewCandidate = onViewCandidate,
-                )
-
-                // Match Candidate 2
-                CandidateItemCard(
-                    candidateId = "dark-backpack",
-                    title = "Dark backpack",
-                    locationDate = "Student Centre • 15 Oct",
-                    matchReason = "Similar category & colour",
-                    onViewCandidate = onViewCandidate,
-                )
+                candidates.forEach { candidate ->
+                    CandidateItemCard(candidate = candidate, onViewCandidate = onViewCandidate)
+                }
             } else {
                 // No Matches Yet Section
                 Text(
@@ -207,15 +202,15 @@ fun PossibleMatchesScreen(
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         Text(
-                            text = "Matching continues automatically",
+                            text = "How matching would work",
                             fontWeight = FontWeight.Bold,
                             fontSize = 14.sp,
                             color = Color(0xFF0F2942),
                         )
                         Text(
-                            text = "New office items are checked against your active report. You do not need to report again. We'll alert you when a candidate appears.",
+                            text = "With a connected report service, new office items could be checked against active lost reports and reviewed by staff.",
                             fontSize = 12.sp,
-                            color = Color.Gray,
+                            color = Color(0xFF475569),
                             lineHeight = 17.sp,
                         )
                     }
@@ -224,9 +219,9 @@ fun PossibleMatchesScreen(
 
             // Footer note
             Text(
-                text = "Still missing your item? Office check-in can take a few days, up to 7. Your report stays active; we'll alert you to new matches.",
+                text = "Sample candidates only. This prototype does not run live matching or send match alerts.",
                 fontSize = 11.sp,
-                color = Color.Gray,
+                color = Color(0xFF475569),
                 lineHeight = 15.sp,
                 modifier = Modifier.padding(top = 8.dp),
             )
@@ -236,10 +231,7 @@ fun PossibleMatchesScreen(
 
 @Composable
 private fun CandidateItemCard(
-    candidateId: String,
-    title: String,
-    locationDate: String,
-    matchReason: String,
+    candidate: CandidateUiModel,
     onViewCandidate: (String) -> Unit,
 ) {
     Card(
@@ -285,15 +277,15 @@ private fun CandidateItemCard(
                     }
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = title,
+                        text = candidate.title,
                         fontWeight = FontWeight.Bold,
                         fontSize = 15.sp,
                         color = Color(0xFF0F2942),
                     )
                     Text(
-                        text = "Bags • found on campus",
+                        text = "${candidate.category} • found on campus",
                         fontSize = 12.sp,
-                        color = Color.Gray,
+                        color = Color(0xFF475569),
                     )
                 }
             }
@@ -304,14 +296,14 @@ private fun CandidateItemCard(
                 Icon(
                     imageVector = Icons.Default.LocationOn,
                     contentDescription = null,
-                    tint = Color.Gray,
+                    tint = Color(0xFF475569),
                     modifier = Modifier.size(14.dp),
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(
-                    text = locationDate,
+                    text = "${candidate.location} • ${candidate.foundDate}",
                     fontSize = 12.sp,
-                    color = Color.Gray,
+                    color = Color(0xFF475569),
                 )
             }
 
@@ -325,12 +317,12 @@ private fun CandidateItemCard(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    text = matchReason,
+                    text = candidate.matchReason,
                     fontSize = 11.sp,
-                    color = Color.Gray,
+                    color = Color(0xFF475569),
                 )
 
-                TextButton(onClick = { onViewCandidate(candidateId) }) {
+                TextButton(onClick = { onViewCandidate(candidate.id) }) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             text = "View details",

@@ -1,5 +1,7 @@
 package com.example.app_1.ui.screens
 
+import android.content.Intent
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -35,6 +37,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -47,6 +50,7 @@ fun AccessAndAuditScreen(
     modifier: Modifier = Modifier,
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
+    val context = LocalContext.current
 
     Column(
         modifier = modifier
@@ -88,8 +92,8 @@ fun AccessAndAuditScreen(
                     )
                     Text(
                         text = "STRATHMORE • TECHNICAL ADMIN",
-                        fontSize = 9.sp,
-                        color = Color.Gray,
+                        fontSize = 11.sp,
+                        color = Color(0xFF475569),
                     )
                 }
             }
@@ -153,6 +157,7 @@ fun AccessAndAuditScreen(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
+            if (selectedTab == 0) {
             // Permission Boundaries
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -160,9 +165,7 @@ fun AccessAndAuditScreen(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(text = "Permission boundaries", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFF0F2942))
-                TextButton(onClick = { /* Manage */ }) {
-                    Text(text = "Manage", color = Color(0xFF1D4ED8), fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                }
+                Text(text = "Preview only", color = Color(0xFF475569), fontSize = 12.sp)
             }
 
             Card(
@@ -189,12 +192,15 @@ fun AccessAndAuditScreen(
                         name = "Technical admin • Rina Nali",
                         badge = "Admin",
                         badgeColor = Color(0xFFF1F5F9),
-                        badgeTextColor = Color.Gray,
+                        badgeTextColor = Color(0xFF475569),
                         description = "Rules, roles & audit - no claim evidence",
                     )
                 }
             }
 
+            }
+
+            if (selectedTab == 1) {
             // Recent Audit Activity
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -202,9 +208,7 @@ fun AccessAndAuditScreen(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(text = "Recent audit activity", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFF0F2942))
-                TextButton(onClick = { /* View all */ }) {
-                    Text(text = "View all", color = Color(0xFF1D4ED8), fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                }
+                Text(text = "Sample events", color = Color(0xFF475569), fontSize = 12.sp)
             }
 
             Card(
@@ -227,21 +231,29 @@ fun AccessAndAuditScreen(
 
             // Export Log Button
             Button(
-                onClick = onExportLog,
+                onClick = {
+                    val share = Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(Intent.EXTRA_TEXT, "Sample redacted audit log\nHandover recorded · 15 Oct\nRestricted review opened · 15 Oct\nCategory rule updated · 14 Oct")
+                    }
+                    context.startActivity(Intent.createChooser(share, "Share sample audit log"))
+                    onExportLog()
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(48.dp),
                 shape = RoundedCornerShape(12.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF1F5F9), contentColor = Color(0xFF0F2942)),
             ) {
-                Text(text = "Export redacted audit log", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                Text(text = "Share sample redacted audit log", fontWeight = FontWeight.Bold, fontSize = 13.sp)
             }
 
             Text(
                 text = "Role changes require supervisor approval. Evidence views and physical handovers are always logged.",
                 fontSize = 10.sp,
-                color = Color.Gray,
+                color = Color(0xFF475569),
             )
+            }
         }
     }
 }
@@ -266,7 +278,7 @@ private fun AuditTabPill(
                 text = text,
                 fontSize = 12.sp,
                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                color = if (isSelected) Color(0xFF0F2942) else Color.Gray,
+                color = if (isSelected) Color(0xFF0F2942) else Color(0xFF475569),
             )
         }
     }
@@ -288,10 +300,10 @@ private fun RoleBoundaryRow(
         ) {
             Text(text = name, fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Color(0xFF0F2942))
             Surface(shape = RoundedCornerShape(4.dp), color = badgeColor) {
-                Text(text = badge, fontSize = 9.sp, fontWeight = FontWeight.Bold, color = badgeTextColor, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
+                Text(text = badge, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = badgeTextColor, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
             }
         }
-        Text(text = description, fontSize = 11.sp, color = Color.Gray)
+        Text(text = description, fontSize = 11.sp, color = Color(0xFF475569))
     }
 }
 
@@ -302,7 +314,7 @@ private fun AuditActivityItem(
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
         Text(text = title, fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Color(0xFF0F2942))
-        Text(text = subtitle, fontSize = 11.sp, color = Color.Gray)
+        Text(text = subtitle, fontSize = 11.sp, color = Color(0xFF475569))
     }
 }
 

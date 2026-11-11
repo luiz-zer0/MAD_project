@@ -38,8 +38,12 @@ import com.example.app_1.ui.theme.App_1Theme
 
 @Composable
 fun NotificationsScreen(
-    onSelectNotification: () -> Unit,
+    onOpenMatch: (String) -> Unit,
+    onOpenClaim: () -> Unit,
+    onOpenReports: () -> Unit,
     modifier: Modifier = Modifier,
+    readMask: Int = 0,
+    onReadMaskChange: (Int) -> Unit = {},
 ) {
     Column(
         modifier = modifier
@@ -80,7 +84,7 @@ fun NotificationsScreen(
                 )
             }
 
-            TextButton(onClick = { /* Mark all read */ }) {
+            TextButton(onClick = { onReadMaskChange(0b111) }) {
                 Text(
                     text = "Mark all read",
                     color = Color(0xFF1D4ED8),
@@ -99,28 +103,29 @@ fun NotificationsScreen(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            Text("SAMPLE NOTIFICATIONS · NO LIVE UPDATES", color = Color(0xFF475569), fontSize = 11.sp)
             NotificationCard(
                 title = "New match candidate found",
                 description = "A found bag matching 'Navy backpack' is ready for review.",
-                timeAgo = "10 mins ago",
-                isUnread = true,
-                onClick = onSelectNotification,
+                timeAgo = "Sample",
+                isUnread = readMask and 1 == 0,
+                onClick = { onReadMaskChange(readMask or 1); onOpenMatch("navy-backpack") },
             )
 
             NotificationCard(
                 title = "Claim status updated",
-                description = "Your claim for 'Navy backpack' is now under office review.",
-                timeAgo = "2 hours ago",
-                isUnread = false,
-                onClick = onSelectNotification,
+                description = "See how office review would work for 'Navy backpack'. No claim has been sent.",
+                timeAgo = "Sample",
+                isUnread = readMask and 2 == 0,
+                onClick = { onReadMaskChange(readMask or 2); onOpenClaim() },
             )
 
             NotificationCard(
                 title = "Welcome to Strathmore Lost & Found",
-                description = "Report lost or found items and receive real-time campus updates.",
-                timeAgo = "Yesterday",
-                isUnread = false,
-                onClick = onSelectNotification,
+                description = "Explore sample reports and locally saved drafts in this prototype.",
+                timeAgo = "Sample",
+                isUnread = readMask and 4 == 0,
+                onClick = { onReadMaskChange(readMask or 4); onOpenReports() },
             )
         }
     }
@@ -158,7 +163,7 @@ private fun NotificationCard(
                 Icon(
                     imageVector = Icons.Default.Notifications,
                     contentDescription = null,
-                    tint = if (isUnread) Color.White else Color.Gray,
+                    tint = if (isUnread) Color.White else Color(0xFF475569),
                     modifier = Modifier.size(18.dp),
                 )
             }
@@ -194,7 +199,7 @@ private fun NotificationCard(
                 Text(
                     text = timeAgo,
                     fontSize = 10.sp,
-                    color = Color.Gray,
+                    color = Color(0xFF475569),
                 )
             }
         }
@@ -205,6 +210,6 @@ private fun NotificationCard(
 @Composable
 fun NotificationsPreview() {
     App_1Theme {
-        NotificationsScreen(onSelectNotification = {})
+        NotificationsScreen(onOpenMatch = {}, onOpenClaim = {}, onOpenReports = {})
     }
 }

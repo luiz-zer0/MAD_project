@@ -89,8 +89,8 @@ fun CategoryRulesScreen(
                     )
                     Text(
                         text = "STRATHMORE • TECHNICAL ADMIN",
-                        fontSize = 9.sp,
-                        color = Color.Gray,
+                        fontSize = 11.sp,
+                        color = Color(0xFF475569),
                     )
                 }
             }
@@ -135,9 +135,9 @@ fun CategoryRulesScreen(
             }
 
             Text(
-                text = "Manage question templates and retention periods, not private claim answers.",
+                text = "Sample question templates and retention periods. Editing requires a connected admin service; private claim answers stay restricted.",
                 fontSize = 12.sp,
-                color = Color.Gray,
+                color = Color(0xFF475569),
                 lineHeight = 16.sp,
             )
 
@@ -195,7 +195,7 @@ fun CategoryRulesScreen(
                 shape = RoundedCornerShape(12.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1D4ED8)),
             ) {
-                Text(text = "Save rule changes", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                Text(text = "View access & audit", fontWeight = FontWeight.Bold, fontSize = 14.sp)
             }
         }
     }
@@ -229,14 +229,12 @@ private fun CategoryRuleCard(
                 Icon(imageVector = icon, contentDescription = null, tint = Color(0xFF1D4ED8), modifier = Modifier.size(20.dp))
                 Column {
                     Text(text = title, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFF0F2942))
-                    Text(text = details, fontSize = 11.sp, color = Color.Gray)
+                    Text(text = details, fontSize = 11.sp, color = Color(0xFF475569))
                 }
             }
             Column(horizontalAlignment = Alignment.End) {
                 Text(text = retentionDays, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF1D4ED8))
-                TextButton(onClick = { /* Edit */ }) {
-                    Text(text = "Edit >", fontSize = 10.sp, color = Color.Gray)
-                }
+                Text(text = "Sample rule", fontSize = 10.sp, color = Color(0xFF475569))
             }
         }
     }

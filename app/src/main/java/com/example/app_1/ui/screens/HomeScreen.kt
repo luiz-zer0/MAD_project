@@ -47,7 +47,6 @@ fun HomeScreen(
     onNavigateToReportFound: () -> Unit,
     modifier: Modifier = Modifier,
     onNavigateToLatestUpdate: () -> Unit = {},
-    onNavigateToOfficeInfo: () -> Unit = {},
 ) {
     Column(
         modifier = modifier
@@ -90,9 +89,9 @@ fun HomeScreen(
                     )
                     Text(
                         text = "STRATHMORE UNIVERSITY",
-                        fontSize = 9.sp,
+                        fontSize = 11.sp,
                         fontWeight = FontWeight.Medium,
-                        color = Color.Gray
+                        color = Color(0xFF475569)
                     )
                 }
             }
@@ -118,7 +117,7 @@ fun HomeScreen(
             Text(
                 text = "Thursday, 15 October",
                 fontSize = 12.sp,
-                color = Color.Gray,
+                color = Color(0xFF475569),
                 fontWeight = FontWeight.Medium
             )
             Text(
@@ -278,7 +277,7 @@ fun HomeScreen(
                         Text(
                             text = "Help it get home",
                             fontSize = 11.sp,
-                            color = Color.Gray
+                            color = Color(0xFF475569)
                         )
                     }
                 }
@@ -362,7 +361,7 @@ fun HomeScreen(
                     Icon(
                         imageVector = Icons.Default.ChevronRight,
                         contentDescription = null,
-                        tint = Color.Gray
+                        tint = Color(0xFF475569)
                     )
                 }
 
@@ -373,14 +372,13 @@ fun HomeScreen(
                 Text(
                     text = "2 found bags are ready for you to review.",
                     fontSize = 12.sp,
-                    color = Color.Gray
+                    color = Color(0xFF475569)
                 )
             }
         }
 
         // Office Info Card
         Card(
-            onClick = onNavigateToOfficeInfo,
             shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(containerColor = Color(0xFFFEF9C3)),
             modifier = Modifier.fillMaxWidth()

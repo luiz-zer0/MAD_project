@@ -21,6 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.Card
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -48,6 +49,8 @@ fun ClaimsQueueScreen(
     modifier: Modifier = Modifier,
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
+    var newestFirst by remember { mutableIntStateOf(0) }
+    var showSensitiveNotice by remember { mutableIntStateOf(0) }
 
     Column(
         modifier = modifier
@@ -56,6 +59,12 @@ fun ClaimsQueueScreen(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
+        if (showSensitiveNotice == 1) AlertDialog(
+            onDismissRequest = { showSensitiveNotice = 0 },
+            title = { Text("Sensitive review unavailable") },
+            text = { Text("This sample wallet has no connected private evidence or staff authorization service. No ownership decision can be made here.") },
+            confirmButton = { TextButton(onClick = { showSensitiveNotice = 0 }) { Text("Close") } },
+        )
         // Staff Top Bar
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -89,8 +98,8 @@ fun ClaimsQueueScreen(
                     )
                     Text(
                         text = "STRATHMORE • LOST & FOUND OFFICE",
-                        fontSize = 9.sp,
-                        color = Color.Gray,
+                        fontSize = 11.sp,
+                        color = Color(0xFF475569),
                     )
                 }
             }
@@ -121,8 +130,8 @@ fun ClaimsQueueScreen(
                 modifier = Modifier.padding(4.dp),
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                QueueTabPill("To review • 6", selectedTab == 0) { selectedTab = 0 }
-                QueueTabPill("Follow-up • 2", selectedTab == 1) { selectedTab = 1 }
+                QueueTabPill("To review • 2", selectedTab == 0) { selectedTab = 0 }
+                QueueTabPill("Follow-up", selectedTab == 1) { selectedTab = 1 }
                 QueueTabPill("Approved", selectedTab == 2) { selectedTab = 2 }
             }
         }
@@ -130,7 +139,7 @@ fun ClaimsQueueScreen(
         Text(
             text = "Compare private ownership answers with office evidence. A possible match is not proof.",
             fontSize = 12.sp,
-            color = Color.Gray,
+            color = Color(0xFF475569),
             lineHeight = 16.sp,
         )
 
@@ -141,8 +150,8 @@ fun ClaimsQueueScreen(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(text = "Awaiting a person's review", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFF0F2942))
-            TextButton(onClick = { /* Sort */ }) {
-                Text(text = "Oldest first", color = Color(0xFF1D4ED8), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            TextButton(onClick = { newestFirst = 1 - newestFirst }) {
+                Text(text = if (newestFirst == 1) "Newest first" else "Oldest first", color = Color(0xFF1D4ED8), fontSize = 12.sp, fontWeight = FontWeight.Bold)
             }
         }
 
@@ -153,27 +162,21 @@ fun ClaimsQueueScreen(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            // Claim Card 1
-            ClaimQueueCard(
-                title = "Navy backpack",
-                tagLabel = "New claim",
-                tagColor = Color(0xFFFEF9C3),
-                tagTextColor = Color(0xFF854D0E),
-                claimant = "Mara Njeri • Today, 9:35am",
-                location = "Held • Student Centre / Shelf A / Bin 3",
-                onOpenReview = onOpenVerification,
-            )
-
-            // Claim Card 2
-            ClaimQueueCard(
-                title = "Brown wallet",
-                tagLabel = "Sensitive item",
-                tagColor = Color(0xFFFEF2F2),
-                tagTextColor = Color(0xFF991B1B),
-                claimant = "Eli Otieno • Today, 9:38am",
-                location = "Sealed • Student Centre / Safe / Pouch W07",
-                onOpenReview = onOpenVerification,
-            )
+            if (selectedTab == 0) {
+                (if (newestFirst == 1) listOf(1, 0) else listOf(0, 1)).forEach { index ->
+                    ClaimQueueCard(
+                        title = if (index == 0) "Navy backpack" else "Brown wallet",
+                        tagLabel = if (index == 0) "New claim" else "Sensitive item",
+                        tagColor = if (index == 0) Color(0xFFFEF9C3) else Color(0xFFFEF2F2),
+                        tagTextColor = if (index == 0) Color(0xFF854D0E) else Color(0xFF991B1B),
+                        claimant = if (index == 0) "Mara Njeri • Today, 9:35am" else "Eli Otieno • Today, 9:38am",
+                        location = if (index == 0) "Held • Student Centre / Shelf A / Bin 3" else "Sealed • Student Centre / Safe / Pouch W07",
+                        onOpenReview = if (index == 0) onOpenVerification else ({ showSensitiveNotice = 1 }),
+                    )
+                }
+            } else {
+                Text("No ${if (selectedTab == 1) "follow-up" else "approved"} claims in this preview.", color = Color(0xFF475569))
+            }
 
             // Notice Banner
             Card(
@@ -219,7 +222,7 @@ private fun QueueTabPill(
                 text = text,
                 fontSize = 12.sp,
                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                color = if (isSelected) Color(0xFF0F2942) else Color.Gray,
+                color = if (isSelected) Color(0xFF0F2942) else Color(0xFF475569),
             )
         }
     }
@@ -268,8 +271,8 @@ private fun ClaimQueueCard(
             }
 
             Spacer(modifier = Modifier.height(4.dp))
-            Text(text = claimant, fontSize = 12.sp, color = Color.Gray)
-            Text(text = location, fontSize = 11.sp, color = Color.Gray)
+            Text(text = claimant, fontSize = 12.sp, color = Color(0xFF475569))
+            Text(text = location, fontSize = 11.sp, color = Color(0xFF475569))
 
             Spacer(modifier = Modifier.height(8.dp))
             HorizontalDivider(color = Color(0xFFF1F5F9))

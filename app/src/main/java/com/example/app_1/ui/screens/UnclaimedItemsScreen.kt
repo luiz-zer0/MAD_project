@@ -87,8 +87,8 @@ fun UnclaimedItemsScreen(
                     )
                     Text(
                         text = "STRATHMORE • LOST & FOUND OFFICE",
-                        fontSize = 9.sp,
-                        color = Color.Gray,
+                        fontSize = 11.sp,
+                        color = Color(0xFF475569),
                     )
                 }
             }
@@ -153,6 +153,7 @@ fun UnclaimedItemsScreen(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            if (selectedTab == 0) {
             // Item 1
             UnclaimedItemCard(
                 title = "Canvas tote",
@@ -182,7 +183,7 @@ fun UnclaimedItemsScreen(
                     Text(
                         text = "No open claim found. Propose transfer to approved campus storage; supervisor sign-off required.",
                         fontSize = 11.sp,
-                        color = Color.Gray,
+                        color = Color(0xFF475569),
                         lineHeight = 15.sp,
                     )
                     Spacer(modifier = Modifier.height(2.dp))
@@ -194,24 +195,17 @@ fun UnclaimedItemsScreen(
                     )
                 }
             }
+            } else {
+                Text("No ${if (selectedTab == 1) "items on hold" else "resolved items"} in this preview.", color = Color(0xFF475569))
+            }
         }
 
-        // Action Button
-        Button(
-            onClick = onSendPlanForReview,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(50.dp),
-            shape = RoundedCornerShape(12.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1D4ED8)),
-        ) {
-            Text(text = "Send plan for supervisor review", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-        }
+        Text("Supervisor review needs a connected office service. No plan is sent from this preview.", color = Color(0xFF475569), fontSize = 12.sp)
 
         Text(
             text = "A staff-recorded transfer log is required when moved.",
             fontSize = 10.sp,
-            color = Color.Gray,
+            color = Color(0xFF475569),
         )
     }
 }
@@ -236,7 +230,7 @@ private fun UnclaimedTabPill(
                 text = text,
                 fontSize = 12.sp,
                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                color = if (isSelected) Color(0xFF0F2942) else Color.Gray,
+                color = if (isSelected) Color(0xFF0F2942) else Color(0xFF475569),
             )
         }
     }
@@ -275,7 +269,7 @@ private fun UnclaimedItemCard(
                 }
             }
             Spacer(modifier = Modifier.height(6.dp))
-            Text(text = subtitle, fontSize = 11.sp, color = Color.Gray, lineHeight = 15.sp)
+            Text(text = subtitle, fontSize = 11.sp, color = Color(0xFF475569), lineHeight = 15.sp)
         }
     }
 }

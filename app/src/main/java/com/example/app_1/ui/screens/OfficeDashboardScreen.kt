@@ -46,6 +46,7 @@ fun OfficeDashboardScreen(
     onCheckInFoundItem: () -> Unit,
     onOpenClaimsQueue: () -> Unit,
     modifier: Modifier = Modifier,
+    onOpenRetention: () -> Unit = {},
 ) {
     Column(
         modifier = modifier
@@ -88,8 +89,8 @@ fun OfficeDashboardScreen(
                     )
                     Text(
                         text = "STRATHMORE • LOST & FOUND OFFICE",
-                        fontSize = 9.sp,
-                        color = Color.Gray,
+                        fontSize = 11.sp,
+                        color = Color(0xFF475569),
                     )
                 }
             }
@@ -113,7 +114,7 @@ fun OfficeDashboardScreen(
         Text(
             text = "Thursday, 15 October • Leah Mugo",
             fontSize = 12.sp,
-            color = Color.Gray,
+            color = Color(0xFF475569),
         )
 
         // Hero Card
@@ -246,7 +247,7 @@ fun OfficeDashboardScreen(
                     Text(
                         text = "Mara Njeri • claim awaiting review",
                         fontSize = 12.sp,
-                        color = Color.Gray,
+                        color = Color(0xFF475569),
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Row(
@@ -271,7 +272,7 @@ fun OfficeDashboardScreen(
                 Icon(
                     imageVector = Icons.Default.ChevronRight,
                     contentDescription = null,
-                    tint = Color.Gray,
+                    tint = Color(0xFF475569),
                 )
             }
         }
@@ -295,7 +296,7 @@ fun OfficeDashboardScreen(
                         color = Color(0xFF713F12),
                     )
                 }
-                TextButton(onClick = { /* View retention */ }) {
+                TextButton(onClick = onOpenRetention) {
                     Text(
                         text = "View",
                         color = Color(0xFF854D0E),
@@ -335,7 +336,7 @@ private fun StatCard(
             Text(
                 text = label,
                 fontSize = 11.sp,
-                color = Color.Gray,
+                color = Color(0xFF475569),
             )
         }
     }

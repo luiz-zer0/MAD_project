@@ -51,19 +51,6 @@ import com.example.app_1.ui.theme.LostFoundMuted
 import com.example.app_1.ui.theme.LostFoundNavy
 import com.example.app_1.ui.theme.LostFoundPageBackground
 
-/** Public candidate details only. Private identifiers are deliberately absent. */
-data class CandidateUiModel(
-    val id: String,
-    val title: String,
-    val foundDate: String,
-    val location: String,
-)
-
-val sampleCandidates = listOf(
-    CandidateUiModel("navy-backpack", "Navy backpack", "Found 14 Oct 2026", "Library · study area"),
-    CandidateUiModel("dark-backpack", "Dark backpack", "Found 15 Oct 2026", "Student Centre"),
-)
-
 @Composable
 fun CandidateDetailScreen(
     candidate: CandidateUiModel,
@@ -116,7 +103,7 @@ fun CandidateDetailScreen(
                 Spacer(Modifier.width(7.dp))
                 Text("Is this yours?", color = LostFoundNavy, fontWeight = FontWeight.Bold, fontSize = 15.sp)
                 Spacer(Modifier.width(8.dp))
-                Text("PRIVATE · REQUIRED", color = LostFoundBlue, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                Text("PRIVATE · REQUIRED", color = LostFoundBlue, fontSize = 11.sp, fontWeight = FontWeight.Bold)
             }
             Text(
                 "Tell us details only the owner would know. These answers should only be shared with authorised office staff.",

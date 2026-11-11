@@ -50,11 +50,13 @@ import com.example.app_1.ui.theme.App_1Theme
 fun SensitiveItemCheckInScreen(
     onConfirmCheckIn: () -> Unit,
     modifier: Modifier = Modifier,
+    preview: OfficeCheckInPreview? = null,
 ) {
-    var categoryLabel by rememberSaveable { mutableStateOf("Wallet - brown wallet") }
-    var foundAt by rememberSaveable { mutableStateOf("Cafeteria") }
-    var receivedTime by rememberSaveable { mutableStateOf("15 Oct • 9:10am") }
-    var custodyLocation by rememberSaveable { mutableStateOf("Student Centre • Safe / Pouch W07") }
+    var categoryLabel by rememberSaveable(preview?.category) { mutableStateOf(preview?.let { "${it.category} - ${it.description}" }.orEmpty()) }
+    var foundAt by rememberSaveable(preview?.foundAt) { mutableStateOf(preview?.foundAt.orEmpty()) }
+    var receivedTime by rememberSaveable { mutableStateOf("") }
+    var custodyLocation by rememberSaveable(preview?.custodyLocation) { mutableStateOf(preview?.custodyLocation.orEmpty()) }
+    var showErrors by rememberSaveable { mutableStateOf(false) }
 
     Column(
         modifier = modifier
@@ -89,15 +91,15 @@ fun SensitiveItemCheckInScreen(
                 }
                 Column {
                     Text(
-                        text = "Sensitive item check-in",
+                        text = if (preview?.category == "Wallet" || preview?.category == "Documents") "Sensitive item check-in" else "Private evidence preview",
                         fontWeight = FontWeight.Bold,
                         fontSize = 17.sp,
                         color = Color(0xFF0F2942),
                     )
                     Text(
                         text = "STRATHMORE • LOST & FOUND OFFICE",
-                        fontSize = 9.sp,
-                        color = Color.Gray,
+                        fontSize = 11.sp,
+                        color = Color(0xFF475569),
                     )
                 }
             }
@@ -144,9 +146,10 @@ fun SensitiveItemCheckInScreen(
             Text(
                 text = "Seal wallets and documents on receipt. Never include personal details in the public listing.",
                 fontSize = 12.sp,
-                color = Color.Gray,
+                color = Color(0xFF475569),
                 lineHeight = 16.sp,
             )
+            if (preview != null) Text("Date found: ${preview.dateFound} · Received by: ${preview.receivedBy}", color = Color(0xFF475569), fontSize = 11.sp)
 
             // Category Label
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -167,17 +170,11 @@ fun SensitiveItemCheckInScreen(
             ) {
                 Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(text = "Found at", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF0F2942))
-                    OutlinedTextField(
-                        value = foundAt,
-                        onValueChange = { foundAt = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(8.dp),
-                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Color(0xFF1D4ED8), unfocusedBorderColor = Color(0xFFCBD5E1)),
-                    )
+                    CampusLocationPicker(foundAt, { foundAt = it })
                 }
 
                 Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(text = "Received", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF0F2942))
+                    Text(text = "Received date/time", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF0F2942))
                     OutlinedTextField(
                         value = receivedTime,
                         onValueChange = { receivedTime = it },
@@ -196,7 +193,7 @@ fun SensitiveItemCheckInScreen(
                     onValueChange = { custodyLocation = it },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(8.dp),
-                    trailingIcon = { Icon(imageVector = Icons.Default.Lock, contentDescription = null, tint = Color.Gray) },
+                    trailingIcon = { Icon(imageVector = Icons.Default.Lock, contentDescription = null, tint = Color(0xFF475569)) },
                     colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Color(0xFF1D4ED8), unfocusedBorderColor = Color(0xFFCBD5E1)),
                 )
             }
@@ -220,13 +217,11 @@ fun SensitiveItemCheckInScreen(
                         Text(text = "Private evidence sealed", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFF0F2942))
                     }
                     Text(
-                        text = "2 attachments • contents and ownership notes hidden. Office intake and reviewers only.",
+                        text = "Sample restricted evidence. No attachments are stored in this prototype.",
                         fontSize = 11.sp,
-                        color = Color.Gray,
+                        color = Color(0xFF475569),
                     )
-                    TextButton(onClick = { /* Manage restricted */ }) {
-                        Text(text = "Manage restricted evidence →", color = Color(0xFF1D4ED8), fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                    }
+                    Text(text = "Restricted evidence management requires the office service.", color = Color(0xFF475569), fontSize = 12.sp)
                 }
             }
 
@@ -252,8 +247,14 @@ fun SensitiveItemCheckInScreen(
             }
 
             // Submit Confirm Button
+            if (showErrors && (categoryLabel.isBlank() || foundAt.isBlank() || receivedTime.isBlank() || custodyLocation.isBlank())) {
+                Text("Complete category, location, received time and custody location.", color = Color(0xFFB42318), fontSize = 11.sp)
+            }
             Button(
-                onClick = onConfirmCheckIn,
+                onClick = {
+                    showErrors = true
+                    if (categoryLabel.isNotBlank() && foundAt.isNotBlank() && receivedTime.isNotBlank() && custodyLocation.isNotBlank()) onConfirmCheckIn()
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp),
@@ -265,7 +266,7 @@ fun SensitiveItemCheckInScreen(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = "Confirm secure check-in",
+                        text = "Finish check-in preview",
                         fontWeight = FontWeight.Bold,
                         fontSize = 14.sp,
                     )

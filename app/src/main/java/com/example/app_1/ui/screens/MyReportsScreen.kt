@@ -39,6 +39,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -52,9 +53,10 @@ fun MyReportsScreen(
     onReviewMatches: () -> Unit,
     modifier: Modifier = Modifier,
     onSelectReportItem: () -> Unit = {},
-    onContinueDraft: () -> Unit = {},
+    onContinueDraft: (Boolean) -> Unit = {},
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
+    val drafts = ReportDraftStore.loadAll(LocalContext.current)
 
     Column(
         modifier = modifier
@@ -144,11 +146,12 @@ fun MyReportsScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Text(
-                text = "Everything you've reported, in one place.",
+                text = "Sample reports are shown for the prototype. Saved drafts stay on this device.",
                 fontSize = 12.sp,
-                color = Color.Gray,
+                color = Color(0xFF475569),
             )
 
+            if (selectedTab == 0) {
             // Card 1: Lost Item
             Card(
                 onClick = onReviewMatches,
@@ -184,7 +187,7 @@ fun MyReportsScreen(
                                 text = "LOST • 14 OCT",
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color.Gray,
+                                color = Color(0xFF475569),
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
@@ -196,7 +199,7 @@ fun MyReportsScreen(
                             Text(
                                 text = "Library • study area",
                                 fontSize = 12.sp,
-                                color = Color.Gray,
+                                color = Color(0xFF475569),
                             )
                         }
                     }
@@ -279,7 +282,7 @@ fun MyReportsScreen(
                                 text = "FOUND • 15 OCT",
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color.Gray,
+                                color = Color(0xFF475569),
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
@@ -291,7 +294,7 @@ fun MyReportsScreen(
                             Text(
                                 text = "Student Centre • cafeteria",
                                 fontSize = 12.sp,
-                                color = Color.Gray,
+                                color = Color(0xFF475569),
                             )
                         }
                     }
@@ -321,16 +324,22 @@ fun MyReportsScreen(
                         Icon(
                             imageVector = Icons.Default.ChevronRight,
                             contentDescription = null,
-                            tint = Color.Gray,
+                            tint = Color(0xFF475569),
                         )
                     }
                 }
             }
 
-            // Unfinished Report Draft Card
+            }
+
+            if (selectedTab == 1) Text("No resolved reports in this preview.", color = Color(0xFF475569))
+            if (selectedTab == 2 && drafts.isEmpty()) Text("No saved draft yet.", color = Color(0xFF475569))
+
+            if (selectedTab == 2) drafts.forEach { draft ->
+            // Locally saved first-step report draft
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Card(
-                    onClick = onContinueDraft,
+                    onClick = { onContinueDraft(draft.isFound) },
                     shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(containerColor = Color.White),
                     border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
@@ -346,7 +355,7 @@ fun MyReportsScreen(
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Text(
-                                text = "Unfinished lost-item report",
+                                text = "Unfinished ${if (draft.isFound) "found" else "lost"}-item report",
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 14.sp,
                                 color = Color(0xFF0F2942),
@@ -359,20 +368,20 @@ fun MyReportsScreen(
                                     text = "Not sent",
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.Medium,
-                                    color = Color.Gray,
+                                    color = Color(0xFF475569),
                                     modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                                 )
                             }
                         }
 
                         Text(
-                            text = "Lost wallet • saved today • Not submitted",
+                            text = "${draft.category.ifBlank { "Category pending" }} • saved on this device • Not submitted",
                             fontSize = 12.sp,
-                            color = Color.Gray,
+                            color = Color(0xFF475569),
                         )
 
                         TextButton(
-                            onClick = onContinueDraft,
+                            onClick = { onContinueDraft(draft.isFound) },
                             modifier = Modifier.padding(top = 4.dp),
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -397,9 +406,10 @@ fun MyReportsScreen(
                 Text(
                     text = "Unfinished reports have not been sent to the Lost & Found Office.",
                     fontSize = 11.sp,
-                    color = Color.Gray,
+                    color = Color(0xFF475569),
                     modifier = Modifier.padding(horizontal = 4.dp),
                 )
+            }
             }
         }
 
@@ -453,7 +463,7 @@ private fun FilterPill(
                 text = text,
                 fontSize = 12.sp,
                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                color = if (isSelected) Color(0xFF0F2942) else Color.Gray,
+                color = if (isSelected) Color(0xFF0F2942) else Color(0xFF475569),
             )
         }
     }

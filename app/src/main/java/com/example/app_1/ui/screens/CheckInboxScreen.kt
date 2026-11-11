@@ -80,14 +80,14 @@ fun CheckInboxScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Text(
-                text = "Check your inbox",
+                text = "Preview access",
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFF0F2942),
             )
 
             Text(
-                text = "We sent a one-time sign-in link to your Strathmore email. Open it on this device to continue.",
+                text = "No email was sent. This prototype lets you explore the selected role without authenticating.",
                 fontSize = 13.sp,
                 color = Color(0xFF475569),
                 lineHeight = 18.sp,
@@ -111,7 +111,7 @@ fun CheckInboxScreen(
                         modifier = Modifier.size(18.dp),
                     )
                     Text(
-                        text = "The link works once and expires shortly. Check spam if you do not see it.",
+                        text = "Real university sign-in requires a connected authentication service and role checks.",
                         fontSize = 12.sp,
                         color = Color(0xFF1E40AF),
                         lineHeight = 16.sp,
@@ -135,7 +135,7 @@ fun CheckInboxScreen(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = "Send a new link",
+                        text = "Enter preview",
                         fontWeight = FontWeight.Bold,
                         fontSize = 14.sp,
                     )

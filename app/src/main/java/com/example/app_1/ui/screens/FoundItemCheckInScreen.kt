@@ -46,17 +46,27 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.app_1.ui.theme.App_1Theme
 
+data class OfficeCheckInPreview(
+    val category: String,
+    val description: String,
+    val dateFound: String,
+    val foundAt: String,
+    val custodyLocation: String,
+    val receivedBy: String,
+)
+
 @Composable
 fun FoundItemCheckInScreen(
-    onContinueToEvidence: () -> Unit,
+    onContinueToEvidence: (OfficeCheckInPreview) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var category by rememberSaveable { mutableStateOf("Bags") }
-    var description by rememberSaveable { mutableStateOf("Navy backpack with a front zip pocket.") }
-    var dateFound by rememberSaveable { mutableStateOf("14 Oct 2026") }
-    var locationFound by rememberSaveable { mutableStateOf("Library • study area") }
-    var custodyLocation by rememberSaveable { mutableStateOf("Student Centre • Shelf A / Bin 3") }
-    var receivedBy by rememberSaveable { mutableStateOf("Leah Mugo • Received at office, 8:55am") }
+    var category by rememberSaveable { mutableStateOf("") }
+    var description by rememberSaveable { mutableStateOf("") }
+    var dateFound by rememberSaveable { mutableStateOf("") }
+    var locationFound by rememberSaveable { mutableStateOf("") }
+    var custodyLocation by rememberSaveable { mutableStateOf("") }
+    var receivedBy by rememberSaveable { mutableStateOf("") }
+    var showErrors by rememberSaveable { mutableStateOf(false) }
 
     Column(
         modifier = modifier
@@ -141,23 +151,16 @@ fun FoundItemCheckInScreen(
             }
 
             Text(
-                text = "Receive the item in person. On check-in, active lost reports are checked for new matches.",
+                text = "Preview an office receipt. This prototype does not create custody records or start matching.",
                 fontSize = 12.sp,
-                color = Color.Gray,
+                color = Color(0xFF475569),
                 lineHeight = 16.sp,
             )
 
             // Category Field
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(text = "Category", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF0F2942))
-                OutlinedTextField(
-                    value = category,
-                    onValueChange = { category = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(8.dp),
-                    trailingIcon = { Icon(imageVector = Icons.Default.KeyboardArrowDown, contentDescription = null) },
-                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Color(0xFF1D4ED8), unfocusedBorderColor = Color(0xFFCBD5E1)),
-                )
+                CategoryPicker(category, { category = it }, showErrors && category.isBlank())
             }
 
             // Description Field
@@ -168,8 +171,11 @@ fun FoundItemCheckInScreen(
                     onValueChange = { description = it },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(8.dp),
+                    isError = showErrors && description.isBlank(),
+                    textStyle = androidx.compose.ui.text.TextStyle(color = Color(0xFF0F2942)),
                     colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Color(0xFF1D4ED8), unfocusedBorderColor = Color(0xFFCBD5E1)),
                 )
+                if (showErrors && description.isBlank()) Text("Required", color = Color(0xFFB42318))
             }
 
             // Dates & Found location Row
@@ -179,26 +185,12 @@ fun FoundItemCheckInScreen(
             ) {
                 Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(text = "Date found", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF0F2942))
-                    OutlinedTextField(
-                        value = dateFound,
-                        onValueChange = { dateFound = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(8.dp),
-                        trailingIcon = { Icon(imageVector = Icons.Default.DateRange, contentDescription = null, tint = Color.Gray) },
-                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Color(0xFF1D4ED8), unfocusedBorderColor = Color(0xFFCBD5E1)),
-                    )
+                    ReportDatePicker(dateFound, { dateFound = it }, showErrors && dateFound.isBlank())
                 }
 
                 Column(modifier = Modifier.weight(1.2f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(text = "Found at", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF0F2942))
-                    OutlinedTextField(
-                        value = locationFound,
-                        onValueChange = { locationFound = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(8.dp),
-                        trailingIcon = { Icon(imageVector = Icons.Default.LocationOn, contentDescription = null, tint = Color.Gray) },
-                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Color(0xFF1D4ED8), unfocusedBorderColor = Color(0xFFCBD5E1)),
-                    )
+                    CampusLocationPicker(locationFound, { locationFound = it }, showErrors && locationFound.isBlank())
                 }
             }
 
@@ -210,7 +202,9 @@ fun FoundItemCheckInScreen(
                     onValueChange = { custodyLocation = it },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(8.dp),
-                    trailingIcon = { Icon(imageVector = Icons.Default.LocationOn, contentDescription = null, tint = Color.Gray) },
+                    placeholder = { Text("e.g. Office shelf A / bin 3") },
+                    isError = showErrors && custodyLocation.isBlank(),
+                    textStyle = androidx.compose.ui.text.TextStyle(color = Color(0xFF0F2942)),
                     colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Color(0xFF1D4ED8), unfocusedBorderColor = Color(0xFFCBD5E1)),
                 )
             }
@@ -223,6 +217,8 @@ fun FoundItemCheckInScreen(
                     onValueChange = { receivedBy = it },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(8.dp),
+                    isError = showErrors && receivedBy.isBlank(),
+                    textStyle = androidx.compose.ui.text.TextStyle(color = Color(0xFF0F2942)),
                     colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Color(0xFF1D4ED8), unfocusedBorderColor = Color(0xFFCBD5E1)),
                 )
             }
@@ -255,7 +251,13 @@ fun FoundItemCheckInScreen(
 
             // Submit Button
             Button(
-                onClick = onContinueToEvidence,
+                onClick = {
+                    showErrors = true
+                    if (category.isNotBlank() && description.isNotBlank() && dateFound.isNotBlank() &&
+                        locationFound.isNotBlank() && custodyLocation.isNotBlank() && receivedBy.isNotBlank()) {
+                        onContinueToEvidence(OfficeCheckInPreview(category, description, dateFound, locationFound, custodyLocation, receivedBy))
+                    }
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp),

@@ -36,7 +36,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -55,9 +55,11 @@ fun CandidateDetailsScreen(
     onBack: () -> Unit,
     onSubmitClaim: () -> Unit,
     modifier: Modifier = Modifier,
+    candidate: CandidateUiModel = sampleCandidates.first(),
 ) {
-    var hiddenFeature by rememberSaveable { mutableStateOf("Small stitched star inside the lining") }
-    var twoThingsInside by rememberSaveable { mutableStateOf("A green notebook and a silver flask") }
+    var hiddenFeature by remember(candidate.id) { mutableStateOf("") }
+    var twoThingsInside by remember(candidate.id) { mutableStateOf("") }
+    var showErrors by remember(candidate.id) { mutableStateOf(false) }
 
     Column(
         modifier = modifier
@@ -85,7 +87,7 @@ fun CandidateDetailsScreen(
                 fontSize = 18.sp,
                 color = Color(0xFF0F2942),
             )
-            TextButton(onClick = { /* Not mine */ }) {
+            TextButton(onClick = onBack) {
                 Text(
                     text = "Not mine",
                     color = Color(0xFF1D4ED8),
@@ -137,7 +139,7 @@ fun CandidateDetailsScreen(
                         color = Color(0xFFDCFCE7),
                     ) {
                         Text(
-                            text = "Held by office",
+                            text = candidate.status,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF15803D),
@@ -146,22 +148,38 @@ fun CandidateDetailsScreen(
                     }
 
                     Text(
-                        text = "Navy backpack",
+                        text = candidate.title,
                         fontWeight = FontWeight.Bold,
                         fontSize = 18.sp,
                         color = Color(0xFF0F2942),
                     )
                     Text(
-                        text = "Found 14 Oct 2026\nLibrary • study area",
+                        text = "${candidate.foundDate}\n${candidate.location}",
                         fontSize = 12.sp,
-                        color = Color.Gray,
+                        color = Color(0xFF475569),
                         lineHeight = 16.sp,
                     )
                     Text(
                         text = "General details only • unique identifiers hidden",
                         fontSize = 10.sp,
-                        color = Color.Gray,
+                        color = Color(0xFF475569),
                     )
+                }
+            }
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+            ) {
+                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                    Text("Category: ${candidate.category}", color = Color(0xFF0F2942), fontSize = 12.sp)
+                    Text(candidate.description, color = Color(0xFF0F2942), fontSize = 12.sp)
+                    Text("Date reported: ${candidate.reportedAt}", color = Color(0xFF475569), fontSize = 11.sp)
+                    Text("Why it appears: ${candidate.matchReason}", color = Color(0xFF475569), fontSize = 11.sp)
+                    Text(candidate.similarityScore?.let { "Similarity score: $it% · suggestion only" }
+                        ?: "Similarity score unavailable", color = Color(0xFF475569), fontSize = 11.sp)
+                    Text("Image unavailable", color = Color(0xFF475569), fontSize = 11.sp)
                 }
             }
 
@@ -198,7 +216,7 @@ fun CandidateDetailsScreen(
                         ) {
                             Text(
                                 text = "PRIVATE • REQUIRED",
-                                fontSize = 9.sp,
+                                fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFF1D4ED8),
                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
@@ -207,9 +225,9 @@ fun CandidateDetailsScreen(
                     }
 
                     Text(
-                        text = "Tell us details only the owner would know. Your answers go to office staff, not the finder.",
+                        text = "Enter private details only the owner would know. This preview does not send answers to staff.",
                         fontSize = 12.sp,
-                        color = Color.Gray,
+                        color = Color(0xFF475569),
                         lineHeight = 16.sp,
                     )
 
@@ -226,11 +244,14 @@ fun CandidateDetailsScreen(
                             onValueChange = { hiddenFeature = it },
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(8.dp),
+                            isError = showErrors && hiddenFeature.isBlank(),
+                            textStyle = androidx.compose.ui.text.TextStyle(color = Color(0xFF0F2942)),
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = Color(0xFF1D4ED8),
                                 unfocusedBorderColor = Color(0xFFCBD5E1),
                             ),
                         )
+                        if (showErrors && hiddenFeature.isBlank()) Text("Required", color = Color(0xFFB42318))
                     }
 
                     // Question 2
@@ -246,11 +267,14 @@ fun CandidateDetailsScreen(
                             onValueChange = { twoThingsInside = it },
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(8.dp),
+                            isError = showErrors && twoThingsInside.isBlank(),
+                            textStyle = androidx.compose.ui.text.TextStyle(color = Color(0xFF0F2942)),
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = Color(0xFF1D4ED8),
                                 unfocusedBorderColor = Color(0xFFCBD5E1),
                             ),
                         )
+                        if (showErrors && twoThingsInside.isBlank()) Text("Required", color = Color(0xFFB42318))
                     }
                 }
             }
@@ -280,7 +304,7 @@ fun CandidateDetailsScreen(
                             color = Color(0xFF1E40AF),
                         )
                         Text(
-                            text = "Staff check your answers before approval. Submitting a claim does not release the item.",
+                            text = "A possible match does not establish ownership. Claim submission needs a connected staff review service.",
                             fontSize = 11.sp,
                             color = Color(0xFF1E40AF),
                             lineHeight = 15.sp,
@@ -291,7 +315,10 @@ fun CandidateDetailsScreen(
 
             // Submit Claim Button
             Button(
-                onClick = onSubmitClaim,
+                onClick = {
+                    showErrors = true
+                    if (hiddenFeature.isNotBlank() && twoThingsInside.isNotBlank()) onSubmitClaim()
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp),
@@ -303,7 +330,7 @@ fun CandidateDetailsScreen(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = "Send claim for office review",
+                        text = "Preview claim status",
                         fontWeight = FontWeight.Bold,
                         fontSize = 14.sp,
                     )
@@ -317,9 +344,9 @@ fun CandidateDetailsScreen(
             }
 
             Text(
-                text = "If approved, bring your campus ID for an in-person handover at the Lost & Found Office.",
+                text = "Prototype only: no claim or ownership answers are sent. If a future claim is approved, bring your campus ID for in-person handover.",
                 fontSize = 11.sp,
-                color = Color.Gray,
+                color = Color(0xFF475569),
                 lineHeight = 15.sp,
             )
         }

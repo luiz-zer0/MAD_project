@@ -50,6 +50,7 @@ fun ClaimStatusScreen(
     onBack: () -> Unit,
     onBackToReports: () -> Unit,
     modifier: Modifier = Modifier,
+    candidate: CandidateUiModel? = null,
 ) {
     Column(
         modifier = modifier
@@ -103,7 +104,7 @@ fun ClaimStatusScreen(
                         color = Color(0xFFEAB308).copy(alpha = 0.2f),
                     ) {
                         Text(
-                            text = "Awaiting office review",
+                            text = "CLAIM PREVIEW · NOT SENT",
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFFEAB308),
@@ -111,13 +112,13 @@ fun ClaimStatusScreen(
                         )
                     }
                     Text(
-                        text = "Navy backpack",
+                        text = candidate?.title ?: "Sample claim",
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.White,
                     )
                     Text(
-                        text = "Claim sent today at 9:35am",
+                        text = "No claim has been sent to the office",
                         fontSize = 12.sp,
                         color = Color(0xFFCBD5E1),
                     )
@@ -139,8 +140,8 @@ fun ClaimStatusScreen(
                     TimelineStepRow(
                         icon = Icons.Default.CheckCircle,
                         iconTint = Color(0xFF16A34A),
-                        title = "Ownership answers submitted",
-                        subtitle = "Your private details reached the office.",
+                        title = "Ownership answers prepared",
+                        subtitle = "Private answers stay on this device in this preview.",
                     )
 
                     HorizontalDivider(color = Color(0xFFF1F5F9))
@@ -149,8 +150,8 @@ fun ClaimStatusScreen(
                     TimelineStepRow(
                         icon = Icons.Default.Schedule,
                         iconTint = Color(0xFFD97706),
-                        title = "Office review in progress",
-                        subtitle = "Staff compare your answers with the item. We'll notify you of their decision.",
+                        title = "Office review required",
+                        subtitle = "A connected service must send a claim for staff review.",
                     )
 
                     HorizontalDivider(color = Color(0xFFF1F5F9))
@@ -158,7 +159,7 @@ fun ClaimStatusScreen(
                     // Step 3
                     TimelineStepRow(
                         icon = Icons.Default.Lock,
-                        iconTint = Color.Gray,
+                        iconTint = Color(0xFF475569),
                         title = "Collection after approval",
                         subtitle = "Not available yet. Staff approval and an in-person ID check are required.",
                     )
@@ -294,7 +295,7 @@ private fun TimelineStepRow(
             Text(
                 text = subtitle,
                 fontSize = 11.sp,
-                color = Color.Gray,
+                color = Color(0xFF475569),
                 lineHeight = 15.sp,
             )
         }

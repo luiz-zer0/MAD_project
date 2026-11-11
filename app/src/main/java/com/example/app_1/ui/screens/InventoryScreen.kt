@@ -21,6 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Card
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
@@ -46,6 +47,14 @@ import androidx.compose.ui.unit.sp
 import com.example.app_1.R
 import com.example.app_1.ui.theme.App_1Theme
 
+private data class InventoryPreviewItem(
+    val title: String,
+    val subtitle: String,
+    val custodyLocation: String,
+    val privacyBadge: String,
+    val isSealed: Boolean,
+)
+
 @Composable
 fun InventoryScreen(
     onSelectItem: () -> Unit,
@@ -53,6 +62,15 @@ fun InventoryScreen(
 ) {
     var searchQuery by remember { mutableStateOf("") }
     var selectedFilterTab by remember { mutableIntStateOf(0) }
+    var selectedItemIndex by remember { mutableIntStateOf(-1) }
+    val sampleItems = listOf(
+        InventoryPreviewItem("Navy backpack", "Found 14 Oct • Library study area", "Shelf A / Bin 3 • Held", "General details only", false),
+        InventoryPreviewItem("Brown wallet", "Found 15 Oct • Cafeteria", "Safe / Pouch W07 • Sealed", "Evidence restricted", true),
+        InventoryPreviewItem("Key ring", "Found 15 Oct • Sports Centre", "Key cabinet / Hook K2 • Held", "General details only", false),
+    )
+    val visibleItems = if (selectedFilterTab == 0) sampleItems.withIndex().filter { (_, item) ->
+        listOf(item.title, item.subtitle, item.custodyLocation).any { it.contains(searchQuery, ignoreCase = true) }
+    } else emptyList()
 
     Column(
         modifier = modifier
@@ -61,6 +79,27 @@ fun InventoryScreen(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
+        if (selectedItemIndex >= 0) {
+            val item = sampleItems[selectedItemIndex]
+            AlertDialog(
+                onDismissRequest = { selectedItemIndex = -1 },
+                title = { Text(item.title) },
+                text = { Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(item.subtitle)
+                    Text(item.custodyLocation)
+                    Text(item.privacyBadge)
+                    Text("Sample inventory record. No live custody record is loaded.")
+                } },
+                confirmButton = {
+                    if (selectedItemIndex == 0) TextButton(onClick = {
+                        selectedItemIndex = -1
+                        onSelectItem()
+                    }) { Text("Preview claim review") }
+                    else TextButton(onClick = { selectedItemIndex = -1 }) { Text("Close") }
+                },
+                dismissButton = if (selectedItemIndex == 0) ({ TextButton(onClick = { selectedItemIndex = -1 }) { Text("Close") } }) else null,
+            )
+        }
         // Staff Top Bar
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -94,8 +133,8 @@ fun InventoryScreen(
                     )
                     Text(
                         text = "STRATHMORE • LOST & FOUND OFFICE",
-                        fontSize = 9.sp,
-                        color = Color.Gray,
+                        fontSize = 11.sp,
+                        color = Color(0xFF475569),
                     )
                 }
             }
@@ -122,9 +161,10 @@ fun InventoryScreen(
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
-                placeholder = { Text("Search item or custody location", fontSize = 12.sp, color = Color.Gray) },
-                trailingIcon = { Icon(imageVector = Icons.Default.Search, contentDescription = null, tint = Color.Gray) },
+                placeholder = { Text("Search item or custody location", fontSize = 12.sp, color = Color(0xFF475569)) },
+                trailingIcon = { Icon(imageVector = Icons.Default.Search, contentDescription = null, tint = Color(0xFF475569)) },
                 modifier = Modifier.fillMaxWidth(),
+                textStyle = androidx.compose.ui.text.TextStyle(color = Color(0xFF0F2942)),
                 shape = RoundedCornerShape(8.dp),
                 colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Color(0xFF1D4ED8), unfocusedBorderColor = Color(0xFFCBD5E1)),
             )
@@ -140,8 +180,8 @@ fun InventoryScreen(
                 modifier = Modifier.padding(4.dp),
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                FilterPillItem("In custody • 24", selectedFilterTab == 0) { selectedFilterTab = 0 }
-                FilterPillItem("Ready • 3", selectedFilterTab == 1) { selectedFilterTab = 1 }
+                FilterPillItem("In custody • 3", selectedFilterTab == 0) { selectedFilterTab = 0 }
+                FilterPillItem("Ready", selectedFilterTab == 1) { selectedFilterTab = 1 }
                 FilterPillItem("Released", selectedFilterTab == 2) { selectedFilterTab = 2 }
             }
         }
@@ -153,9 +193,7 @@ fun InventoryScreen(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(text = "Held by office", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFF0F2942))
-            TextButton(onClick = { /* Filter */ }) {
-                Text(text = "Filter", color = Color(0xFF1D4ED8), fontSize = 12.sp, fontWeight = FontWeight.Bold)
-            }
+            Text(text = "Sample records", color = Color(0xFF475569), fontSize = 12.sp)
         }
 
         // List Scrollable
@@ -165,40 +203,22 @@ fun InventoryScreen(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            // Item 1
-            InventoryItemCard(
-                title = "Navy backpack",
-                subtitle = "Found 14 Oct • Library study area",
-                custodyLocation = "Shelf A / Bin 3 • Held",
-                privacyBadge = "General details only",
-                isSealed = false,
-                onClick = onSelectItem,
-            )
-
-            // Item 2
-            InventoryItemCard(
-                title = "Brown wallet",
-                subtitle = "Found 15 Oct • Cafeteria",
-                custodyLocation = "Safe / Pouch W07 • Sealed",
-                privacyBadge = "Evidence restricted",
-                isSealed = true,
-                onClick = onSelectItem,
-            )
-
-            // Item 3
-            InventoryItemCard(
-                title = "Key ring",
-                subtitle = "Found 15 Oct • Sports Centre",
-                custodyLocation = "Key cabinet / Hook K2 • Held",
-                privacyBadge = "General details only",
-                isSealed = false,
-                onClick = onSelectItem,
-            )
+            visibleItems.forEach { (index, item) ->
+                InventoryItemCard(
+                    title = item.title,
+                    subtitle = item.subtitle,
+                    custodyLocation = item.custodyLocation,
+                    privacyBadge = item.privacyBadge,
+                    isSealed = item.isSealed,
+                    onClick = { selectedItemIndex = index },
+                )
+            }
+            if (visibleItems.isEmpty()) Text("No sample inventory items match this view.", color = Color(0xFF475569))
 
             Text(
                 text = "General details only. Private evidence is available solely in authorized office review.",
                 fontSize = 11.sp,
-                color = Color.Gray,
+                color = Color(0xFF475569),
                 lineHeight = 15.sp,
                 modifier = Modifier.padding(top = 8.dp),
             )
@@ -226,7 +246,7 @@ private fun FilterPillItem(
                 text = text,
                 fontSize = 12.sp,
                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                color = if (isSelected) Color(0xFF0F2942) else Color.Gray,
+                color = if (isSelected) Color(0xFF0F2942) else Color(0xFF475569),
             )
         }
     }
@@ -281,7 +301,7 @@ private fun InventoryItemCard(
                 Text(
                     text = subtitle,
                     fontSize = 11.sp,
-                    color = Color.Gray,
+                    color = Color(0xFF475569),
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Row(
@@ -294,7 +314,7 @@ private fun InventoryItemCard(
                     ) {
                         Text(
                             text = custodyLocation,
-                            fontSize = 9.sp,
+                            fontSize = 11.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = Color(0xFF334155),
                             modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
@@ -302,8 +322,8 @@ private fun InventoryItemCard(
                     }
                     Text(
                         text = privacyBadge,
-                        fontSize = 9.sp,
-                        color = Color.Gray,
+                        fontSize = 11.sp,
+                        color = Color(0xFF475569),
                     )
                 }
             }
@@ -311,7 +331,7 @@ private fun InventoryItemCard(
             Icon(
                 imageVector = Icons.Default.ChevronRight,
                 contentDescription = null,
-                tint = Color.Gray,
+                tint = Color(0xFF475569),
             )
         }
     }

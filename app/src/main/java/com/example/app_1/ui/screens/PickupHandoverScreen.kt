@@ -22,13 +22,19 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.Card
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -44,11 +50,18 @@ fun PickupHandoverScreen(
     onViewReceipt: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    var showReceipt by remember { mutableStateOf(false) }
     Column(
         modifier = modifier
             .fillMaxSize()
             .background(Color.White),
     ) {
+        if (showReceipt) AlertDialog(
+            onDismissRequest = { showReceipt = false },
+            title = { Text("Sample handover receipt") },
+            text = { Text("Navy backpack · Sample pickup by Mara Njeri at Student Centre. No physical handover or audit event was recorded by this app.") },
+            confirmButton = { TextButton(onClick = { showReceipt = false }) { Text("Close") } },
+        )
         // Top Bar
         Row(
             modifier = Modifier
@@ -84,8 +97,8 @@ fun PickupHandoverScreen(
                     )
                     Text(
                         text = "STRATHMORE • LOST & FOUND OFFICE",
-                        fontSize = 9.sp,
-                        color = Color.Gray,
+                        fontSize = 11.sp,
+                        color = Color(0xFF475569),
                     )
                 }
             }
@@ -198,9 +211,9 @@ fun PickupHandoverScreen(
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     Text(text = "Custody & release log", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFF0F2942))
-                    Text(text = "From Shelf A / Bin 3 → Mara Njeri\nStudent Centre • office counter", fontSize = 11.sp, color = Color.Gray, lineHeight = 15.sp)
+                    Text(text = "From Shelf A / Bin 3 → Mara Njeri\nStudent Centre • office counter", fontSize = 11.sp, color = Color(0xFF475569), lineHeight = 15.sp)
                     Spacer(modifier = Modifier.height(2.dp))
-                    Text(text = "Recorded by Leah Mugo • 11:18am", fontSize = 10.sp, color = Color.Gray, fontWeight = FontWeight.Medium)
+                    Text(text = "Recorded by Leah Mugo • 11:18am", fontSize = 10.sp, color = Color(0xFF475569), fontWeight = FontWeight.Medium)
                 }
             }
 
@@ -217,7 +230,7 @@ fun PickupHandoverScreen(
                 ) {
                     Icon(imageVector = Icons.Default.Info, contentDescription = null, tint = Color(0xFF1D4ED8), modifier = Modifier.size(16.dp))
                     Text(
-                        text = "This records a completed physical handover by staff after verification. No automatic release.",
+                        text = "Sample handover steps only. This app does not record physical custody, ID checks, or item release.",
                         fontSize = 11.sp,
                         color = Color(0xFF1E40AF),
                         lineHeight = 15.sp,
@@ -227,7 +240,7 @@ fun PickupHandoverScreen(
 
             // Receipt Button
             OutlinedButton(
-                onClick = onViewReceipt,
+                onClick = { showReceipt = true; onViewReceipt() },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(48.dp),
@@ -235,7 +248,7 @@ fun PickupHandoverScreen(
                 border = BorderStroke(1.dp, Color(0xFFCBD5E1)),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(text = "View handover receipt", color = Color(0xFF0F2942), fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    Text(text = "View sample receipt", color = Color(0xFF0F2942), fontSize = 13.sp, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.width(6.dp))
                     Icon(imageVector = Icons.Default.Description, contentDescription = null, tint = Color(0xFF0F2942), modifier = Modifier.size(16.dp))
                 }
@@ -262,7 +275,7 @@ private fun HandoverCheckRow(
         )
         Column {
             Text(text = title, fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Color(0xFF0F2942))
-            Text(text = subtitle, fontSize = 11.sp, color = Color.Gray)
+            Text(text = subtitle, fontSize = 11.sp, color = Color(0xFF475569))
         }
     }
 }

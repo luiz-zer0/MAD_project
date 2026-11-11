@@ -48,6 +48,7 @@ import com.example.app_1.ui.theme.App_1Theme
 fun OwnershipVerificationScreen(
     onApprovePickup: () -> Unit,
     modifier: Modifier = Modifier,
+    onKeepOnHold: () -> Unit = {},
 ) {
     var isConfirmed by rememberSaveable { mutableStateOf(true) }
 
@@ -91,8 +92,8 @@ fun OwnershipVerificationScreen(
                     )
                     Text(
                         text = "STRATHMORE • LOST & FOUND OFFICE",
-                        fontSize = 9.sp,
-                        color = Color.Gray,
+                        fontSize = 11.sp,
+                        color = Color(0xFF475569),
                     )
                 }
             }
@@ -136,7 +137,7 @@ fun OwnershipVerificationScreen(
                 ) {
                     Icon(imageVector = Icons.Default.Lock, contentDescription = null, tint = Color(0xFF854D0E), modifier = Modifier.size(16.dp))
                     Text(
-                        text = "Restricted office review • Leah Mugo authorized. Evidence access logged for this claim.",
+                        text = "Sample comparison only. No staff authorization or evidence access is performed or logged by this prototype.",
                         fontSize = 11.sp,
                         color = Color(0xFF713F12),
                         lineHeight = 15.sp,
@@ -159,7 +160,7 @@ fun OwnershipVerificationScreen(
                         color = Color(0xFFEAB308).copy(alpha = 0.2f),
                     ) {
                         Text(
-                            text = "Awaiting your decision",
+                            text = "SAMPLE REVIEW · NO DECISION",
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFFEAB308),
@@ -254,25 +255,25 @@ fun OwnershipVerificationScreen(
                 shape = RoundedCornerShape(12.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1D4ED8)),
             ) {
-                Text(text = "Approve for in-person pickup", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                Text(text = "Preview pickup steps", fontWeight = FontWeight.Bold, fontSize = 14.sp)
             }
 
             // Hold Button
             OutlinedButton(
-                onClick = { /* Keep on hold */ },
+                onClick = onKeepOnHold,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(48.dp),
                 shape = RoundedCornerShape(12.dp),
                 border = BorderStroke(1.dp, Color(0xFFCBD5E1)),
             ) {
-                Text(text = "Request more details / keep on hold", color = Color(0xFF0F2942), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                Text(text = "Return to claims queue", color = Color(0xFF0F2942), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
             }
 
             Text(
                 text = "Approval is a handover decision, not a release. Staff must check identity and record physical handover.",
                 fontSize = 11.sp,
-                color = Color.Gray,
+                color = Color(0xFF475569),
                 lineHeight = 15.sp,
             )
         }
@@ -291,7 +292,7 @@ private fun ComparisonCell(
         modifier = modifier,
     ) {
         Column(modifier = Modifier.padding(10.dp)) {
-            Text(text = label, fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1D4ED8))
+            Text(text = label, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1D4ED8))
             Spacer(modifier = Modifier.height(4.dp))
             Text(text = text, fontSize = 11.sp, color = Color(0xFF0F2942), lineHeight = 15.sp)
         }

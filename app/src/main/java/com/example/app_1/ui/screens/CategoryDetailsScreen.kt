@@ -41,6 +41,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -59,9 +60,22 @@ fun CategoryDetailsScreen(
     onBack: () -> Unit,
     onSubmitReport: () -> Unit,
     modifier: Modifier = Modifier,
+    category: String = "Bags",
+    isFoundReport: Boolean = false,
+    onCategoryChange: (String) -> Unit = {},
 ) {
-    var brandFeature by rememberSaveable { mutableStateOf("Kipling • small stitched star inside lining") }
-    var whatInside by rememberSaveable { mutableStateOf("Green notebook and a silver flask") }
+    val selectedCategory = category
+    var brandFeature by remember(selectedCategory) { mutableStateOf("") }
+    var whatInside by remember(selectedCategory) { mutableStateOf("") }
+    var showErrors by remember { mutableStateOf(false) }
+    val firstQuestion = when (selectedCategory) {
+        "Keys" -> "How many keys? Any private keyring detail?"
+        "Electronics" -> "Make, model or a hidden identifying detail?"
+        "Documents" -> "Document type and a private identifying detail?"
+        "Wallet" -> "Brand, lining or a hidden identifying detail?"
+        else -> "Brand & a hidden identifying feature?"
+    }
+    val secondQuestion = if (isFoundReport) "Other private condition or custody details?" else "What was inside?"
 
     Column(
         modifier = modifier
@@ -89,14 +103,12 @@ fun CategoryDetailsScreen(
                 fontSize = 18.sp,
                 color = Color(0xFF0F2942),
             )
-            TextButton(onClick = { /* Save draft */ }) {
-                Text(
-                    text = "Save draft",
+            Text(
+                    text = "PREVIEW",
                     color = Color(0xFF1D4ED8),
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
                 )
-            }
         }
 
         HorizontalDivider(color = Color(0xFFF1F5F9))
@@ -153,7 +165,7 @@ fun CategoryDetailsScreen(
                                 modifier = Modifier.size(20.dp),
                             )
                             Text(
-                                text = "Bags",
+                                text = selectedCategory,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 15.sp,
                                 color = Color(0xFF0F2942),
@@ -187,7 +199,7 @@ fun CategoryDetailsScreen(
                     // Question 1
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(
-                            text = "Brand & a hidden identifying feature?",
+                            text = firstQuestion,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = Color(0xFF0F2942),
@@ -197,17 +209,20 @@ fun CategoryDetailsScreen(
                             onValueChange = { brandFeature = it },
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(8.dp),
+                            isError = showErrors && brandFeature.isBlank(),
+                            textStyle = androidx.compose.ui.text.TextStyle(color = Color(0xFF0F2942)),
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = Color(0xFF1D4ED8),
                                 unfocusedBorderColor = Color(0xFFCBD5E1),
                             ),
                         )
+                        if (showErrors && brandFeature.isBlank()) Text("Required", color = Color(0xFFB42318))
                     }
 
                     // Question 2
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(
-                            text = "What was inside?",
+                            text = secondQuestion,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = Color(0xFF0F2942),
@@ -217,6 +232,7 @@ fun CategoryDetailsScreen(
                             onValueChange = { whatInside = it },
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(8.dp),
+                            textStyle = androidx.compose.ui.text.TextStyle(color = Color(0xFF0F2942)),
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = Color(0xFF1D4ED8),
                                 unfocusedBorderColor = Color(0xFFCBD5E1),
@@ -227,41 +243,40 @@ fun CategoryDetailsScreen(
             }
 
             // Collapsed Category Items
-            CollapsedCategoryCard(
-                icon = Icons.Default.Key,
-                title = "Keys",
-                subtitle = "How many keys? Any fob or keyring detail?",
-            )
-
-            CollapsedCategoryCard(
-                icon = Icons.Default.Wallet,
-                title = "Wallet",
-                subtitle = "Brand or lining? What was inside?",
-            )
-
-            CollapsedCategoryCard(
-                icon = Icons.Default.Description,
-                title = "Documents",
-                subtitle = "Document type? Name & issuing institution?",
-            )
-
-            CollapsedCategoryCard(
-                icon = Icons.Default.PhoneAndroid,
-                title = "Electronics",
-                subtitle = "Make / model? Case, serial or lock-screen detail?",
-            )
+            reportCategories.filter { it != selectedCategory }.forEach { option ->
+                CollapsedCategoryCard(
+                    icon = when (option) {
+                        "Keys" -> Icons.Default.Key
+                        "Wallet" -> Icons.Default.Wallet
+                        "Documents" -> Icons.Default.Description
+                        "Electronics" -> Icons.Default.PhoneAndroid
+                        else -> Icons.Default.ShoppingBag
+                    },
+                    title = option,
+                    subtitle = "Select this category",
+                    onClick = { onCategoryChange(option) },
+                )
+            }
 
             // Disclaimer text
             Text(
-                text = "Only the selected category is required; changing it replaces the questions. Answers stay private and are checked by office staff, never other students.",
+                text = "Add one private identifying detail to continue. Changing category updates the questions. These answers are discarded when you leave this preview.",
                 fontSize = 11.sp,
-                color = Color.Gray,
+                color = Color(0xFF475569),
                 lineHeight = 15.sp,
             )
 
-            // Submit Button
+            Text(
+                "Prototype only: these answers are not submitted or saved. Keep private ownership details for authorised office staff.",
+                color = Color(0xFF475569), fontSize = 11.sp,
+            )
+
+            // Finish the local preview without claiming a report was created.
             Button(
-                onClick = onSubmitReport,
+                onClick = {
+                    showErrors = true
+                    if (brandFeature.isNotBlank()) onSubmitReport()
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp),
@@ -273,7 +288,7 @@ fun CategoryDetailsScreen(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = "Submit lost report",
+                        text = "Finish preview",
                         fontWeight = FontWeight.Bold,
                         fontSize = 14.sp,
                     )
@@ -294,8 +309,10 @@ private fun CollapsedCategoryCard(
     icon: ImageVector,
     title: String,
     subtitle: String,
+    onClick: () -> Unit,
 ) {
     Card(
+        onClick = onClick,
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
@@ -316,7 +333,7 @@ private fun CollapsedCategoryCard(
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
-                    tint = Color.Gray,
+                    tint = Color(0xFF475569),
                     modifier = Modifier.size(20.dp),
                 )
                 Column {
@@ -329,14 +346,14 @@ private fun CollapsedCategoryCard(
                     Text(
                         text = subtitle,
                         fontSize = 11.sp,
-                        color = Color.Gray,
+                        color = Color(0xFF475569),
                     )
                 }
             }
             Icon(
                 imageVector = Icons.Default.ChevronRight,
                 contentDescription = null,
-                tint = Color.Gray,
+                tint = Color(0xFF475569),
             )
         }
     }

@@ -38,6 +38,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -45,6 +46,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -56,14 +58,17 @@ import com.example.app_1.ui.theme.App_1Theme
 fun ReportFoundScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
-    onContinueToDetails: () -> Unit = {},
+    onContinueToDetails: (String) -> Unit = {},
+    category: String = "",
+    onCategoryChange: (String) -> Unit = {},
 ) {
-    var category by rememberSaveable { mutableStateOf("Keys") }
-    var description by rememberSaveable {
-        mutableStateOf("A set of keys on a metal ring, found near the cafeteria entrance.")
-    }
-    var dateFound by rememberSaveable { mutableStateOf("15 October 2026") }
-    var foundLocation by rememberSaveable { mutableStateOf("Student Centre • cafeteria") }
+    val context = LocalContext.current
+    val savedDraft = remember { ReportDraftStore.load(context, true) }
+    var description by rememberSaveable { mutableStateOf(savedDraft?.description.orEmpty()) }
+    var dateFound by rememberSaveable { mutableStateOf(savedDraft?.date.orEmpty()) }
+    var foundLocation by rememberSaveable { mutableStateOf(savedDraft?.location.orEmpty()) }
+    var showErrors by rememberSaveable { mutableStateOf(false) }
+    var draftSaved by rememberSaveable { mutableStateOf(false) }
 
     Column(
         modifier = modifier
@@ -91,7 +96,10 @@ fun ReportFoundScreen(
                 fontSize = 18.sp,
                 color = Color(0xFF0F2942)
             )
-            TextButton(onClick = { /* Save draft */ }) {
+            TextButton(onClick = {
+                ReportDraftStore.save(context, BasicReportDraft(true, category, description, dateFound, foundLocation))
+                draftSaved = true
+            }) {
                 Text(
                     text = "Save draft",
                     color = Color(0xFF1D4ED8),
@@ -111,6 +119,7 @@ fun ReportFoundScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            if (draftSaved) Text("Draft saved on this device · not submitted", color = Color(0xFF475569))
             // Step Indicator Column
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(
@@ -154,22 +163,7 @@ fun ReportFoundScreen(
                     fontSize = 13.sp,
                     color = Color(0xFF0F2942)
                 )
-                OutlinedTextField(
-                    value = category,
-                    onValueChange = { category = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    trailingIcon = {
-                        Icon(
-                            imageVector = Icons.Default.KeyboardArrowDown,
-                            contentDescription = null
-                        )
-                    },
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Color(0xFF1D4ED8),
-                        unfocusedBorderColor = Color(0xFFCBD5E1)
-                    )
-                )
+                CategoryPicker(category, { onCategoryChange(it); draftSaved = false }, showErrors && category.isBlank())
             }
 
             // Description Field
@@ -182,16 +176,19 @@ fun ReportFoundScreen(
                 )
                 OutlinedTextField(
                     value = description,
-                    onValueChange = { description = it },
+                    onValueChange = { description = it; draftSaved = false },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(100.dp),
                     shape = RoundedCornerShape(12.dp),
+                    isError = showErrors && description.isBlank(),
+                    textStyle = androidx.compose.ui.text.TextStyle(color = Color(0xFF0F2942)),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = Color(0xFF1D4ED8),
                         unfocusedBorderColor = Color(0xFFCBD5E1)
                     )
                 )
+                if (showErrors && description.isBlank()) Text("Describe the item", color = Color(0xFFB42318))
             }
 
             // Date Found Field
@@ -202,23 +199,7 @@ fun ReportFoundScreen(
                     fontSize = 13.sp,
                     color = Color(0xFF0F2942)
                 )
-                OutlinedTextField(
-                    value = dateFound,
-                    onValueChange = { dateFound = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    trailingIcon = {
-                        Icon(
-                            imageVector = Icons.Default.DateRange,
-                            contentDescription = null,
-                            tint = Color.Gray
-                        )
-                    },
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Color(0xFF1D4ED8),
-                        unfocusedBorderColor = Color(0xFFCBD5E1)
-                    )
-                )
+                ReportDatePicker(dateFound, { dateFound = it; draftSaved = false }, showErrors && dateFound.isBlank())
             }
 
             // Found on Campus Field
@@ -229,23 +210,7 @@ fun ReportFoundScreen(
                     fontSize = 13.sp,
                     color = Color(0xFF0F2942)
                 )
-                OutlinedTextField(
-                    value = foundLocation,
-                    onValueChange = { foundLocation = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    trailingIcon = {
-                        Icon(
-                            imageVector = Icons.Default.LocationOn,
-                            contentDescription = null,
-                            tint = Color.Gray
-                        )
-                    },
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Color(0xFF1D4ED8),
-                        unfocusedBorderColor = Color(0xFFCBD5E1)
-                    )
-                )
+                CampusLocationPicker(foundLocation, { foundLocation = it; draftSaved = false }, showErrors && foundLocation.isBlank())
             }
 
             // Add Photos Box
@@ -283,21 +248,21 @@ fun ReportFoundScreen(
                         }
                         Column {
                             Text(
-                                text = "Add photos • optional",
+                                text = "Photos unavailable in preview",
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 13.sp,
                                 color = Color(0xFF1D4ED8)
                             )
                             Text(
-                                text = "Up to 3 photos. Avoid personal details.",
+                                text = "Photo upload needs a connected report service.",
                                 fontSize = 11.sp,
-                                color = Color.Gray
+                                color = Color(0xFF475569)
                             )
                         }
                     }
                     Icon(
                         imageVector = Icons.Default.Add,
-                        contentDescription = "Add",
+                        contentDescription = null,
                         tint = Color(0xFF1D4ED8)
                     )
                 }
@@ -331,7 +296,12 @@ fun ReportFoundScreen(
 
             // Submit Button
             Button(
-                onClick = onContinueToDetails,
+                onClick = {
+                    showErrors = true
+                    if (category.isNotBlank() && description.isNotBlank() && dateFound.isNotBlank() && foundLocation.isNotBlank()) {
+                        onContinueToDetails(category)
+                    }
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp),

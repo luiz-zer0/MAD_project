@@ -88,7 +88,7 @@ fun SignInScreen(
                     )
                 }
                 Text(
-                    text = "Sign in",
+                    text = "Explore prototype",
                     fontSize = 28.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.White,
@@ -105,7 +105,7 @@ fun SignInScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Text(
-                text = "Use your Strathmore University email. We'll send a one-time sign-in link to your inbox.",
+                text = "Choose a sample role and use a Strathmore email format to explore the prototype. No sign-in link is sent.",
                 fontSize = 13.sp,
                 color = Color(0xFF475569),
                 lineHeight = 18.sp,
@@ -169,7 +169,7 @@ fun SignInScreen(
                 OutlinedTextField(
                     value = email,
                     onValueChange = { email = it },
-                    placeholder = { Text("name@strathmore.edu", fontSize = 13.sp, color = Color.Gray) },
+                    placeholder = { Text("name@strathmore.edu", fontSize = 13.sp, color = Color(0xFF475569)) },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
@@ -212,7 +212,7 @@ fun SignInScreen(
                             modifier = Modifier.size(16.dp),
                         )
                         Text(
-                            text = "Only @strathmore.edu addresses can receive a sign-in link.",
+                            text = "The prototype accepts @strathmore.edu format for navigation only.",
                             fontSize = 12.sp,
                             color = Color(0xFF1E40AF),
                             lineHeight = 16.sp,
@@ -238,7 +238,7 @@ fun SignInScreen(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = "Email me a sign-in link",
+                        text = "Continue preview",
                         fontWeight = FontWeight.Bold,
                         fontSize = 14.sp,
                     )
@@ -289,7 +289,7 @@ private fun RoleOptionCard(
             Text(
                 text = subtitle,
                 fontSize = 10.sp,
-                color = Color.Gray,
+                color = Color(0xFF475569),
             )
         }
     }
