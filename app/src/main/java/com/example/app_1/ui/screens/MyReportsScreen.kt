@@ -51,6 +51,8 @@ fun MyReportsScreen(
     onNavigateToNewReport: () -> Unit,
     onReviewMatches: () -> Unit,
     modifier: Modifier = Modifier,
+    onSelectReportItem: () -> Unit = {},
+    onContinueDraft: () -> Unit = {},
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
 
@@ -149,6 +151,7 @@ fun MyReportsScreen(
 
             // Card 1: Lost Item
             Card(
+                onClick = onReviewMatches,
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.White),
                 border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
@@ -243,6 +246,7 @@ fun MyReportsScreen(
 
             // Card 2: Found Item
             Card(
+                onClick = onSelectReportItem,
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.White),
                 border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
@@ -326,6 +330,7 @@ fun MyReportsScreen(
             // Unfinished Report Draft Card
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Card(
+                    onClick = onContinueDraft,
                     shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(containerColor = Color.White),
                     border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
@@ -367,7 +372,7 @@ fun MyReportsScreen(
                         )
 
                         TextButton(
-                            onClick = { /* Continue report */ },
+                            onClick = onContinueDraft,
                             modifier = Modifier.padding(top = 4.dp),
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {

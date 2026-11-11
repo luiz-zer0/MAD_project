@@ -46,6 +46,8 @@ fun HomeScreen(
     onNavigateToReportLost: () -> Unit,
     onNavigateToReportFound: () -> Unit,
     modifier: Modifier = Modifier,
+    onNavigateToLatestUpdate: () -> Unit = {},
+    onNavigateToOfficeInfo: () -> Unit = {},
 ) {
     Column(
         modifier = modifier
@@ -295,7 +297,7 @@ fun HomeScreen(
                 fontSize = 16.sp,
                 color = Color(0xFF0F2942)
             )
-            TextButton(onClick = { /* View all */ }) {
+            TextButton(onClick = onNavigateToLatestUpdate) {
                 Text(
                     text = "View all",
                     fontSize = 13.sp,
@@ -307,6 +309,7 @@ fun HomeScreen(
 
         // Latest Update Card
         Card(
+            onClick = onNavigateToLatestUpdate,
             shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(containerColor = Color.White),
             border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
@@ -377,6 +380,7 @@ fun HomeScreen(
 
         // Office Info Card
         Card(
+            onClick = onNavigateToOfficeInfo,
             shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(containerColor = Color(0xFFFEF9C3)),
             modifier = Modifier.fillMaxWidth()
