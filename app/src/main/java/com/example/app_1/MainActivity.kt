@@ -51,6 +51,7 @@ import com.example.app_1.ui.screens.OwnershipVerificationScreen
 import com.example.app_1.ui.screens.PickupHandoverScreen
 import com.example.app_1.ui.screens.PossibleMatchesScreen
 import com.example.app_1.ui.screens.ReportFoundScreen
+import com.example.app_1.ui.screens.LostIdPreviewScreen
 import com.example.app_1.ui.screens.ReportLostScreen
 import com.example.app_1.ui.screens.ReportDraftStore
 import com.example.app_1.ui.screens.ReportPreviewScreen
@@ -66,7 +67,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             App_1Theme {
-                MainApp()
+                com.example.app_1.ui.screens.ConnectedApp()
             }
         }
     }
@@ -79,6 +80,8 @@ fun MainApp() {
     val context = LocalContext.current
     var lostCategory by rememberSaveable { mutableStateOf(ReportDraftStore.load(context, false)?.category.orEmpty()) }
     var foundCategory by rememberSaveable { mutableStateOf(ReportDraftStore.load(context, true)?.category.orEmpty()) }
+    var lostItemName by rememberSaveable { mutableStateOf(ReportDraftStore.load(context, false)?.itemName.orEmpty()) }
+    var foundItemName by rememberSaveable { mutableStateOf(ReportDraftStore.load(context, true)?.itemName.orEmpty()) }
     var reportIsFound by rememberSaveable { mutableStateOf(false) }
     var selectedCandidateId by rememberSaveable { mutableStateOf(sampleCandidates.first().id) }
     var matchesReturnScreen by rememberSaveable { mutableStateOf(Screen.MY_REPORTS) }
@@ -93,7 +96,7 @@ fun MainApp() {
     BackHandler(currentScreen != Screen.SIGN_IN) {
         currentScreen = when (currentScreen) {
             Screen.CHECK_INBOX, Screen.HOME, Screen.OFFICE_DASHBOARD, Screen.CATEGORY_RULES -> Screen.SIGN_IN
-            Screen.REPORT_LOST, Screen.REPORT_FOUND, Screen.MY_REPORTS, Screen.NOTIFICATIONS -> Screen.HOME
+            Screen.LOST_ID, Screen.REPORT_LOST, Screen.REPORT_FOUND, Screen.MY_REPORTS, Screen.NOTIFICATIONS -> Screen.HOME
             Screen.CATEGORY_DETAILS -> if (reportIsFound) Screen.REPORT_FOUND else Screen.REPORT_LOST
             Screen.REPORT_PREVIEW -> Screen.MY_REPORTS
             Screen.POSSIBLE_MATCHES -> matchesReturnScreen
@@ -122,7 +125,7 @@ fun MainApp() {
                             StudentNavDestination.entries.forEach { destination ->
                                 val isSelected = when (destination) {
                                     StudentNavDestination.HOME -> currentScreen == Screen.HOME
-                                    StudentNavDestination.REPORTS -> currentScreen == Screen.MY_REPORTS || currentScreen == Screen.REPORT_LOST || currentScreen == Screen.REPORT_FOUND || currentScreen == Screen.CATEGORY_DETAILS || currentScreen == Screen.REPORT_PREVIEW
+                                    StudentNavDestination.REPORTS -> currentScreen == Screen.LOST_ID || currentScreen == Screen.MY_REPORTS || currentScreen == Screen.REPORT_LOST || currentScreen == Screen.REPORT_FOUND || currentScreen == Screen.CATEGORY_DETAILS || currentScreen == Screen.REPORT_PREVIEW
                                     StudentNavDestination.MATCHES -> currentScreen == Screen.POSSIBLE_MATCHES || currentScreen == Screen.CANDIDATE_DETAILS || currentScreen == Screen.CLAIM_STATUS
                                     StudentNavDestination.ALERTS -> currentScreen == Screen.NOTIFICATIONS
                                 }
@@ -264,6 +267,10 @@ fun MainApp() {
                     },
                     category = lostCategory,
                     onCategoryChange = { lostCategory = it },
+                    itemName = lostItemName,
+                    onItemNameChange = { lostItemName = it },
+                    onLostId = { currentScreen = Screen.LOST_ID },
+                    onMyReports = { currentScreen = Screen.MY_REPORTS },
                 )
                 Screen.REPORT_FOUND -> ReportFoundScreen(
                     onBack = { currentScreen = Screen.HOME },
@@ -274,7 +281,12 @@ fun MainApp() {
                     },
                     category = foundCategory,
                     onCategoryChange = { foundCategory = it },
+                    itemName = foundItemName,
+                    onItemNameChange = { foundItemName = it },
+                    onLostId = { currentScreen = Screen.LOST_ID },
+                    onMyReports = { currentScreen = Screen.MY_REPORTS },
                 )
+                Screen.LOST_ID -> LostIdPreviewScreen(onBack = { currentScreen = Screen.REPORT_LOST }, onMyReports = { currentScreen = Screen.MY_REPORTS })
                 Screen.CATEGORY_DETAILS -> CategoryDetailsScreen(
                     onBack = { currentScreen = if (reportIsFound) Screen.REPORT_FOUND else Screen.REPORT_LOST },
                     onSubmitReport = { currentScreen = Screen.HOME },

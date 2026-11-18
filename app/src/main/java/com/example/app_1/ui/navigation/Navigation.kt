@@ -23,6 +23,7 @@ enum class Screen {
     CHECK_INBOX,
     HOME,
     REPORT_LOST,
+    LOST_ID,
     REPORT_FOUND,
     CATEGORY_DETAILS,
     MY_REPORTS,

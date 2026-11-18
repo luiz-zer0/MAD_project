@@ -1,0 +1,11 @@
+# Copy to firebase.properties only when connecting a REAL Firebase project.
+# These Android config values are public identifiers, never Admin SDK private keys.
+# From google-services.json: project_info.project_id, client[...].client_info.mobilesdk_app_id,
+# client[...].api_key[0].current_key, project_info.storage_bucket.
+FIREBASE_PROJECT_ID=
+FIREBASE_APP_ID=
+FIREBASE_API_KEY=
+FIREBASE_STORAGE_BUCKET=
+# For a USB-connected debug device, use adb reverse tcp:8000 tcp:8000 and:
+# ML_API_BASE_URL=http://127.0.0.1:8000
+ML_API_BASE_URL=https://your-deployed-api.example

@@ -243,7 +243,8 @@ fun CategoryDetailsScreen(
             }
 
             // Collapsed Category Items
-            reportCategories.filter { it != selectedCategory }.forEach { option ->
+            ChalaCatalog.categories.filter { it.id != ChalaCatalog.resolve(ChalaCatalog.categories, selectedCategory)?.id }.forEach { entry ->
+                val option = entry.displayLabel
                 CollapsedCategoryCard(
                     icon = when (option) {
                         "Keys" -> Icons.Default.Key

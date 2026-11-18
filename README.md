@@ -64,3 +64,7 @@ uvicorn matching_system.api:app --reload
 **Planned:** real-campus evaluation, image pairs and CLIP features, model comparison, durable backend and Android integration.
 
 The current Delhi-derived held-out check has 108 constructed pairs. Precision is 0.971, recall 0.944 and F1 0.958 in that academic exercise; these are **not** real-world lost-and-found accuracy estimates. The older campus baseline has eight held-out synthetic pairs. See `docs/CAT2_WORKFLOW.md`, `docs/MODEL_EXPLANATION.md`, and `docs/NEXT_STEPS.md` for the presentation guide and next work.
+
+## Connected Firebase workflow
+
+The launcher now opens the authenticated Firebase workflow. Debug builds without firebase.properties use local emulators. Existing sample screens remain in source. See [FIREBASE_SETUP.md](FIREBASE_SETUP.md) for setup, model-service integration and tested limitations.
