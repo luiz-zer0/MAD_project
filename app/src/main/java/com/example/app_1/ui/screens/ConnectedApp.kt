@@ -77,8 +77,10 @@ fun ConnectedApp() {
     }
     LaunchedEffect(Unit) {
         if (repository.auth.currentUser != null) run {
-            identity = repository.refreshIdentity()
-            refresh()
+            if (repository.checkEmailVerified()) {
+                identity = repository.refreshIdentity()
+                refresh()
+            } else message = "Check your inbox and spam folder for the Firebase verification link."
         }
     }
     Column(Modifier.fillMaxSize().safeDrawingPadding().imePadding().verticalScroll(rememberScrollState()).padding(20.dp),
@@ -94,18 +96,28 @@ fun ConnectedApp() {
             Button(enabled = !busy, onClick = { run {
                 repository.signIn(email, password)
                 password = ""
-                identity = repository.refreshIdentity()
-                refresh()
+                if (repository.checkEmailVerified()) {
+                    identity = repository.refreshIdentity()
+                    refresh()
+                } else message = "Email not verified yet. Check your inbox, then tap Check verification."
             } }) { Text("Sign in") }
             OutlinedButton(enabled = !busy, onClick = { run {
                 repository.register(email, password)
                 password = ""
                 message = "Verification email sent. Verify it, then press Check verification."
             } }) { Text("Create student account") }
-            TextButton(enabled = !busy, onClick = { run {
-                identity = repository.refreshIdentity()
-                refresh()
-            } }) { Text("Check verification") }
+            if (repository.auth.currentUser != null) {
+                TextButton(enabled = !busy, onClick = { run {
+                    if (repository.checkEmailVerified()) {
+                        identity = repository.refreshIdentity()
+                        refresh()
+                    } else message = "Still waiting for verification. Check spam or resend the email."
+                } }) { Text("Check verification") }
+                TextButton(enabled = !busy, onClick = { run {
+                    repository.resendVerificationEmail()
+                    message = "Verification email requested again. Check your inbox and spam folder."
+                } }) { Text("Resend verification email") }
+            }
         } else {
             val staff = identity!!.optString("role") in listOf("office_staff", "admin")
             Text("${repository.auth.currentUser?.email} Â· ${identity!!.optString("role")}")

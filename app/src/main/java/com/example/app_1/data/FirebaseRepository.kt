@@ -44,6 +44,18 @@ class FirebaseRepository(context: Context) {
         auth.currentUser!!.sendEmailVerification().await()
     }
 
+    suspend fun checkEmailVerified(): Boolean {
+        val user = auth.currentUser ?: error("Sign in to check your verification status.")
+        user.reload().await()
+        return user.isEmailVerified
+    }
+
+    suspend fun resendVerificationEmail() {
+        val user = auth.currentUser ?: error("Sign in to resend the email.")
+        user.reload().await()
+        if (!user.isEmailVerified) user.sendEmailVerification().await()
+    }
+
     suspend fun refreshIdentity(): JSONObject {
         auth.currentUser?.reload()?.await()
         auth.currentUser?.getIdToken(true)?.await()
