@@ -162,7 +162,8 @@ fun ConnectedApp() {
                         Text("Model scores rank suggestions; they do not establish ownership. Office staff verify every claim.")
                         if (matches.isEmpty()) Text("No suggestions available yet.")
                         matches.forEach { match ->
-                            Text("${match.optString("item_name")} Â· score ${"%.3f".format(match.optDouble("score"))}")
+                            Text("${match.optString("item_name")} · text similarity ${"%.3f".format(match.optDouble("score"))}")
+                            Text(match.optString("explanation", "Staff review is required before any ownership decision."))
                             if (match.optString("owner_uid") == identity!!.getString("uid")) Button(enabled = !busy, onClick = { run {
                                 repository.request("POST", "/v1/matches/${match.getString("id")}/claim", JSONObject())
                                 message = "Claim submitted for staff verification."; refresh()
