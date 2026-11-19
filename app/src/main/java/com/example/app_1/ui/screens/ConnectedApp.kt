@@ -76,7 +76,17 @@ fun ConnectedApp(incomingLink: String? = null, onLinkConsumed: () -> Unit = {}) 
     var matches by remember { mutableStateOf(emptyList<JSONObject>()) }
     var claims by remember { mutableStateOf(emptyList<JSONObject>()) }
     var notifications by remember { mutableStateOf(emptyList<JSONObject>()) }
+    var categoryRules by remember { mutableStateOf(emptyList<JSONObject>()) }
+    var auditEvents by remember { mutableStateOf(emptyList<JSONObject>()) }
+    var adminOnline by remember { mutableStateOf(false) }
+    var unclaimedItems by remember { mutableStateOf(emptyList<JSONObject>()) }
+    var retentionPolicyCount by remember { mutableIntStateOf(0) }
+    var unclaimedOnline by remember { mutableStateOf(false) }
     var selected by remember { mutableStateOf<JSONObject?>(null) }
+    var selectedMatch by remember { mutableStateOf<JSONObject?>(null) }
+    var candidate by remember { mutableStateOf<JSONObject?>(null) }
+    var selectedClaim by remember { mutableStateOf<JSONObject?>(null) }
+    var receipt by remember { mutableStateOf<JSONObject?>(null) }
     var reportsTab by rememberSaveable { mutableStateOf("Active") }
     var pendingDecision by remember { mutableStateOf<Pair<String, String>?>(null) }
     var photoBytes by remember { mutableStateOf<ByteArray?>(null) }
@@ -112,6 +122,23 @@ fun ConnectedApp(incomingLink: String? = null, onLinkConsumed: () -> Unit = {}) 
         claims = repository.request("GET", "/v1/claims").rows("claims")
         notifications = repository.request("GET", "/v1/notifications").rows("notifications")
         backendOnline = true
+    }
+    LaunchedEffect(page, identity?.optString("role")) {
+        if (identity?.optString("role") == "admin" && page in setOf("Admin", "Rules", "Audit")) {
+            runCatching {
+                categoryRules = repository.request("GET", "/v1/admin/category-rules").rows("rules")
+                auditEvents = repository.request("GET", "/v1/admin/audit").rows("events")
+                adminOnline = true
+            }.onFailure { adminOnline = false }
+        }
+        if (identity?.optString("role") == "office_staff" && page == "Unclaimed") {
+            runCatching {
+                val response = repository.request("GET", "/v1/office/unclaimed")
+                unclaimedItems = response.rows("items")
+                retentionPolicyCount = response.optInt("policy_configured_categories")
+                unclaimedOnline = true
+            }.onFailure { unclaimedOnline = false }
+        }
     }
     LaunchedEffect(Unit) {
         if (repository.auth.currentUser != null) run {
@@ -227,18 +254,10 @@ fun ConnectedApp(incomingLink: String? = null, onLinkConsumed: () -> Unit = {}) 
                 onReports = { page = "Reports" }, onMatches = { page = "Matches" },
                 onProfile = { page = "Profile" }, modifier = Modifier.weight(1f))
         } else {
-    ConnectedPageHeader(when (page) { "Reports" -> "My reports"; "Matches" -> "Possible matches"; "Alerts" -> "Notifications"; "Inventory" -> "Inventory"; "Claims" -> "Claims queue"; "Rules" -> "Category rules"; "Audit" -> "Access & audit"; else -> "Lost & Found" },
+    ConnectedPageHeader(when (page) { "Reports" -> "My reports"; "Matches" -> "Possible matches"; "Candidate" -> "Candidate details"; "ClaimStatus" -> "Claim status"; "Verification" -> "Ownership verification"; "Handover" -> "Pickup & handover"; "Alerts" -> "Notifications"; "Inventory" -> "Inventory"; "Claims" -> "Claims queue"; "Unclaimed" -> "Unclaimed items"; "Rules" -> "Category rules"; "Audit" -> "Access & audit"; else -> "Lost & Found" },
         when (role) { "office_staff" -> "LOST & FOUND OFFICE"; "admin" -> "TECHNICAL ADMINISTRATION"; else -> "STRATHMORE UNIVERSITY" })
     Column(Modifier.weight(1f).imePadding().verticalScroll(rememberScrollState()).padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(when (page) {
-            "Reports" -> if (role == "student") "My reports" else "Office reports"
-            "Matches" -> "Possible matches"
-            "Alerts" -> "Notifications"
-            "FoundHelp" -> "I found something"
-            "Profile" -> "Your account"
-            else -> "Report an item"
-        }, color = Color(0xFF112B4B), fontSize = 22.sp, fontWeight = FontWeight.Bold)
         if (BuildConfig.USE_FIREBASE_EMULATORS) Text("Local emulator · fictional test accounts only")
         if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
         if (message.isNotBlank()) Text(message, style = MaterialTheme.typography.bodyMedium)
@@ -248,10 +267,19 @@ fun ConnectedApp(incomingLink: String? = null, onLinkConsumed: () -> Unit = {}) 
                 TextButton(enabled = !busy, onClick = { run { refresh() } }) { Text("Refresh updates") }
             when (page) {
                 "Office" -> OfficeDashboard(reports, claims, backendOnline,
-                    onCheckIn = { page = "NewFound" }, onInventory = { page = "Inventory" }, onClaims = { page = "Claims" })
+                    onCheckIn = { page = "NewFound" }, onInventory = { page = "Inventory" },
+                    onClaims = { page = "Claims" }, onUnclaimed = { page = "Unclaimed" })
+                "Unclaimed" -> OfficeUnclaimed(unclaimedItems, unclaimedOnline, retentionPolicyCount)
                 "Admin" -> AdminOverview(onRules = { page = "Rules" }, onAudit = { page = "Audit" })
-                "Rules" -> AdminRules()
-                "Audit" -> AdminAudit()
+                "Rules" -> AdminRules(categoryRules, adminOnline) { id, days, restricted, sealed ->
+                    run {
+                        repository.request("PUT", "/v1/admin/category-rules/$id", JSONObject()
+                            .put("retention_days", days).put("restricted", restricted).put("requires_seal", sealed))
+                        categoryRules = repository.request("GET", "/v1/admin/category-rules").rows("rules")
+                        message = "Rule saved."
+                    }
+                }
+                "Audit" -> AdminAudit(auditEvents, adminOnline)
                 "Inventory" -> {
                     Text("Inventory", color = Color(0xFF112B4B), fontSize = 22.sp, fontWeight = FontWeight.Bold)
                     if (!backendOnline) ConnectedNotice("Inventory unavailable", "Connect to the office service to review items in custody.")
@@ -263,10 +291,27 @@ fun ConnectedApp(incomingLink: String? = null, onLinkConsumed: () -> Unit = {}) 
                     }
                     Button(onClick = { page = "NewFound" }) { Text("Check in a found item") }
                 }
+                "Candidate" -> ConnectedCandidateScreen(candidate, busy,
+                    onBack = { page = "Reports" }, onClaim = { proof ->
+                        val matchId = selectedMatch?.optString("id").orEmpty()
+                        run {
+                            repository.request("POST", "/v1/matches/$matchId/claim", JSONObject().put("ownership_details", proof))
+                            message = "Ownership request sent to the office."
+                            refresh(); page = "Reports"; selectedMatch = null
+                        }
+                    })
+                "ClaimStatus" -> selectedClaim?.let { claim -> ConnectedClaimStatusScreen(claim, receipt) {
+                    page = "Reports"
+                } }
+                "Verification" -> selectedClaim?.let { claim -> ConnectedVerificationScreen(claim, busy,
+                    onBack = { page = "Claims" }, onDecision = { action -> pendingDecision = claim.optString("id") to action }) }
+                "Handover" -> selectedClaim?.let { claim -> ConnectedHandoverScreen(claim, receipt, busy,
+                    onBack = { page = "Claims" }, onCollect = { pendingDecision = claim.optString("id") to "collected" }) }
                 "Profile" -> {
-                    Text(repository.auth.currentUser?.email.orEmpty())
-                    Text("Role: ${when (role) { "admin" -> "Administrator"; "office_staff" -> "Office staff"; else -> "Student" }}")
-                    Text("Office and admin roles are assigned through verified account claims.")
+                    Text("Your account", color = Color(0xFF112B4B), fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                    ConnectedNotice(repository.auth.currentUser?.email.orEmpty(),
+                        "Role: ${when (role) { "admin" -> "Administrator"; "office_staff" -> "Office staff"; else -> "Student" }}")
+                    ConnectedNotice("Account access", "Office and admin roles are assigned through verified account claims.")
                     OutlinedButton(onClick = {
                         repository.auth.signOut(); identity = null; page = "Home"
                         reports = emptyList(); matches = emptyList(); claims = emptyList(); notifications = emptyList()
@@ -281,7 +326,8 @@ fun ConnectedApp(incomingLink: String? = null, onLinkConsumed: () -> Unit = {}) 
                     }
                 }
                 "FoundHelp" -> {
-                    Text("Please bring the item to the Lost & Found Office in the Student Centre. Office staff record found items so they can verify custody and arrange a safe handover.")
+                    Text("I found something", color = Color(0xFF112B4B), fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                    ConnectedNotice("Bring it to the office", "Please bring the item to the Lost & Found Office in the Student Centre. Staff will record custody and arrange a safe handover.")
                     Button(onClick = { page = "Home" }) { Text("Back to Home") }
                 }
                 "Matches" -> {
@@ -343,15 +389,18 @@ fun ConnectedApp(incomingLink: String? = null, onLinkConsumed: () -> Unit = {}) 
                     if (backendOnline && reportsTab != "Unfinished") {
                         val relevant = claims.filter { claim -> reports.any { it.optString("id") == claim.optString("lost_id") } }
                         if (relevant.isNotEmpty()) Text("Claim status", color = Color(0xFF112B4B), fontSize = 17.sp, fontWeight = FontWeight.Bold)
-                        relevant.forEach { claim -> ConnectedNotice(
-                            "Ownership request · ${claim.optString("status")}",
-                            when (claim.optString("status")) {
-                                "pending" -> "The office is reviewing your request. Bring private proof of ownership in person."
-                                "approved" -> "The office approved your request. Arrange pickup with staff."
-                                "collected" -> "The item was recorded as handed over."
-                                "rejected" -> "The office could not verify this claim. Contact staff for help."
-                                else -> "Ask the office for the latest status."
-                            }) }
+                        relevant.forEach { claim -> Card(onClick = {
+                            selectedClaim = claim; receipt = null; page = "ClaimStatus"
+                            if (claim.optString("status") == "collected") run {
+                                receipt = repository.request("GET", "/v1/claims/${claim.getString("id")}/receipt")
+                            }
+                        }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color.White)) {
+                            Column(Modifier.padding(16.dp)) {
+                                Text("Ownership request · ${claim.optString("status")}", color = Color(0xFF112B4B), fontWeight = FontWeight.SemiBold)
+                                Text("View status and next steps", color = Color(0xFF697586), fontSize = 12.sp)
+                            }
+                        } }
                     }
                     if (selected != null) {
                         Text("Selected: ${selected!!.optString("item_name")}", style = MaterialTheme.typography.titleMedium)
@@ -362,12 +411,17 @@ fun ConnectedApp(incomingLink: String? = null, onLinkConsumed: () -> Unit = {}) 
                         Text("Model scores rank suggestions; they do not establish ownership. Office staff verify every claim.")
                         if (matches.isEmpty()) ConnectedNotice("No matches yet", "Possible matches will appear here when the matching service finds a candidate.")
                         matches.forEach { match ->
-                            Text("${match.optString("item_name")} · text similarity ${"%.3f".format(match.optDouble("score"))}")
-                            Text(match.optString("explanation", "Staff review is required before any ownership decision."))
-                            if (match.optString("owner_uid") == identity!!.getString("uid")) Button(enabled = !busy, onClick = { run {
-                                repository.request("POST", "/v1/matches/${match.getString("id")}/claim", JSONObject())
-                                message = "Claim submitted for staff verification."; refresh()
-                            } }) { Text("Request ownership review") }
+                            Card(onClick = { if (match.optString("owner_uid") == identity!!.getString("uid")) run {
+                                selectedMatch = match; candidate = null
+                                candidate = repository.request("GET", "/v1/matches/${match.getString("id")}/candidate").getJSONObject("candidate")
+                                page = "Candidate"
+                            } }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp),
+                                colors = CardDefaults.cardColors(containerColor = Color.White)) {
+                                Column(Modifier.padding(16.dp)) {
+                                    Text("Possible office match", color = Color(0xFF112B4B), fontWeight = FontWeight.SemiBold)
+                                    Text("Review general details and provide private proof", color = Color(0xFF697586), fontSize = 12.sp)
+                                }
+                            }
                         }
                     }
                 }
@@ -382,17 +436,13 @@ fun ConnectedApp(incomingLink: String? = null, onLinkConsumed: () -> Unit = {}) 
                                 Text("Lost report: ${claim.getString("lost_id")}")
                                 Text("Found report: ${claim.getString("found_id")}")
                                 if (staff) {
-                                    Text("Verify ownership in person before approving; confirm physical handover before marking collected.")
-                                    val actions = when (claim.getString("status")) {
-                                        "pending" -> listOf("approved", "rejected")
-                                        "approved" -> listOf("collected", "rejected")
-                                        else -> emptyList()
-                                    }
-                                    actions.forEach { action ->
-                                        TextButton(enabled = !busy, onClick = { pendingDecision = claim.getString("id") to action }) {
-                                            Text("Mark $action")
+                                    TextButton(enabled = !busy, onClick = {
+                                        selectedClaim = claim; receipt = null
+                                        page = if (claim.optString("status") == "pending") "Verification" else "Handover"
+                                        if (claim.optString("status") == "collected") run {
+                                            receipt = repository.request("GET", "/v1/claims/${claim.getString("id")}/receipt")
                                         }
-                                    }
+                                    }) { Text(if (claim.optString("status") == "pending") "Review evidence" else "View handover") }
                                 }
                             }
                         }
@@ -420,6 +470,12 @@ fun ConnectedApp(incomingLink: String? = null, onLinkConsumed: () -> Unit = {}) 
                     run {
                         repository.request("POST", "/v1/claims/$claimId/decision", JSONObject().put("status", action))
                         message = "Review saved."; refresh()
+                        selectedClaim = claims.firstOrNull { it.optString("id") == claimId }
+                        if (action == "approved") page = "Handover"
+                        if (action == "collected") {
+                            receipt = repository.request("GET", "/v1/claims/$claimId/receipt")
+                            page = "Handover"
+                        }
                     }
                 }) { Text("Confirm") } },
                 dismissButton = { TextButton(onClick = { pendingDecision = null }) { Text("Cancel") } })
@@ -450,13 +506,18 @@ private fun ConnectedReportForm(repository: FirebaseRepository, staff: Boolean, 
     var model by rememberSaveable { mutableStateOf(saved.optString("model")) }
     var material by rememberSaveable { mutableStateOf(saved.optString("material")) }
     var photo by rememberSaveable { mutableStateOf(saved.optString("photo")) }
+    var privateFeature by rememberSaveable { mutableStateOf(saved.optString("private_feature")) }
+    var custodyLocation by rememberSaveable { mutableStateOf(saved.optString("custody_location")) }
+    var sealed by rememberSaveable { mutableStateOf(saved.optBoolean("sealed")) }
+    var formStep by rememberSaveable { mutableIntStateOf(1) }
     var attempted by rememberSaveable { mutableStateOf(saved.optBoolean("attempted")) }
     var completed by remember { mutableStateOf(false) }
     fun persistDraft() {
         val draft = JSONObject().put("request_id", requestId).put("found", found).put("title", title)
             .put("description", description).put("category", category).put("location", location).put("date", date)
             .put("brand", brand).put("colour", colour).put("model", model).put("material", material)
-            .put("photo", photo).put("attempted", attempted)
+            .put("photo", photo).put("private_feature", privateFeature).put("custody_location", custodyLocation)
+            .put("sealed", sealed).put("attempted", attempted)
         preferences.edit().putString("draft", draft.toString()).apply()
     }
     SideEffect { if (!completed) persistDraft() }
@@ -466,35 +527,62 @@ private fun ConnectedReportForm(repository: FirebaseRepository, staff: Boolean, 
             photo = uri.toString()
         }
     }
-    Text("New report", style = MaterialTheme.typography.titleLarge)
-    Text("Draft saved on this device for your account. It is submitted only after the server confirms.")
-    Text("Do not include ID numbers or private ownership evidence. Photos are for staff review, not ML analysis.")
-    if (staff) Row { Checkbox(found, { if (!attempted) found = it }, enabled = !busy && !attempted); Text("Record found item in office custody") }
+    Text(if (formStep == 1) if (found) "Found item check-in" else "Report lost item" else if (found && category in listOf("wallet", "documents")) "Sensitive item check-in" else "Category details",
+        color = Color(0xFF112B4B), fontSize = 22.sp, fontWeight = FontWeight.Bold)
+    Text(if (formStep == 1) "STEP 1 OF 2 · ITEM DETAILS" else "STEP 2 OF 2 · PRIVATE DETAILS",
+        color = Color(0xFF245ECA), fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+    LinearProgressIndicator(progress = { if (formStep == 1) 0.5f else 1f }, modifier = Modifier.fillMaxWidth())
+    Text("Draft saved on this device until the service confirms submission.", color = Color(0xFF697586), fontSize = 12.sp)
+    if (staff && formStep == 1) Row { Checkbox(found, { if (!attempted) found = it }, enabled = !busy && !attempted); Text("Record found item in office custody") }
     val editable = !busy && !attempted
+    if (formStep == 1) {
     OutlinedTextField(title, { title = it }, enabled = editable, label = { Text("Item name") }, modifier = Modifier.fillMaxWidth())
-    OutlinedTextField(description, { description = it }, enabled = editable, label = { Text("Description") }, modifier = Modifier.fillMaxWidth(), minLines = 3)
+    OutlinedTextField(description, { description = it }, enabled = editable,
+        label = { Text("General description") }, modifier = Modifier.fillMaxWidth(), minLines = 3)
+    Text("Keep IDs, passwords and hidden identifying details out of this description.", color = Color(0xFF697586), fontSize = 12.sp)
     if (editable) {
         CategoryPicker(category, { category = it })
         CampusLocationPicker(location, { location = it })
         ReportDatePicker(date, { date = it })
     } else Text("$category Â· $location Â· $date")
+    Button(enabled = editable && title.isNotBlank() && description.length >= 3 && category.isNotBlank() && location.isNotBlank() && validReportDate(date),
+        onClick = { formStep = 2 }, modifier = Modifier.fillMaxWidth()) { Text("Continue to category details") }
+    } else {
+    ConnectedNotice("${category.replace('_', ' ').replaceFirstChar { it.uppercase() }} selected",
+        if (found) "Record custody carefully. Private details stay with office staff." else "Add a detail that may help the office verify your report.")
+    OutlinedTextField(privateFeature, { privateFeature = it.take(200) }, enabled = editable,
+        label = { Text(if (found) "Private condition or custody detail" else "Hidden identifying feature (optional)") },
+        modifier = Modifier.fillMaxWidth(), minLines = 2)
     OutlinedTextField(brand, { brand = it }, enabled = editable, label = { Text("Brand (optional)") })
     OutlinedTextField(model, { model = it }, enabled = editable, label = { Text("Model (optional)") })
     OutlinedTextField(colour, { colour = it }, enabled = editable, label = { Text("Colour (optional)") })
     OutlinedTextField(material, { material = it }, enabled = editable, label = { Text("Material (optional)") })
-    OutlinedButton(enabled = editable, onClick = { picker.launch(arrayOf("image/jpeg", "image/png", "image/webp")) }) {
-        Text(if (photo.isBlank()) "Add photo" else "Replace photo")
+    if (found && category in listOf("wallet", "documents")) {
+        ConnectedNotice("Restricted office intake", "Seal wallets and documents on receipt. Never put personal numbers in a public description.")
+        OutlinedTextField(custodyLocation, { custodyLocation = it.take(100) }, enabled = editable,
+            label = { Text("Secure custody location") }, modifier = Modifier.fillMaxWidth())
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Checkbox(sealed, { sealed = it }, enabled = editable)
+            Text("Item sealed and recorded", color = Color(0xFF112B4B))
+        }
     }
-    if (photo.isNotBlank()) TextButton(enabled = editable, onClick = { photo = "" }) { Text("Remove photo") }
-    Button(enabled = !busy && title.isNotBlank() && description.length >= 3 && category.isNotBlank() && location.isNotBlank() && validReportDate(date), onClick = {
+    ConnectedNotice("Photo uploads unavailable", "This Firebase project needs a Storage billing upgrade. You can submit the report without a photo.")
+    if (photo.isNotBlank()) {
+        Text("A photo is saved in this draft but cannot be uploaded yet. Remove it to submit this report without a photo.", color = Color(0xFF697586), fontSize = 12.sp)
+        TextButton(enabled = editable, onClick = { photo = "" }) { Text("Remove saved photo") }
+    }
+    Button(enabled = !busy && photo.isBlank() && title.isNotBlank() && description.length >= 3 && category.isNotBlank() && location.isNotBlank() && validReportDate(date)
+        && (!found || category !in listOf("wallet", "documents") || (sealed && custodyLocation.isNotBlank())), onClick = {
         attempted = true
         persistDraft()
         run {
-            val photoPath = if (photo.isBlank()) "" else repository.uploadPhoto(requestId, android.net.Uri.parse(photo), context)
+            val photoPath = ""
             val payload = JSONObject().put("request_id", requestId).put("report_type", if (found) "found" else "lost")
                 .put("item_name", title).put("description", description).put("category_id", category)
                 .put("location_id", location).put("event_date", date).put("brand", brand).put("model", model)
                 .put("colour", colour).put("material", material).put("photo_reference", photoPath)
+                .put("distinctive_features", JSONArray().also { if (privateFeature.isNotBlank()) it.put(privateFeature) })
+                .put("sealed", sealed).put("custody_location", custodyLocation)
             val saved = repository.request("POST", "/v1/reports", payload)
             completed = true
             preferences.edit().remove("draft").apply()
@@ -504,5 +592,7 @@ private fun ConnectedReportForm(repository: FirebaseRepository, staff: Boolean, 
     if (attempted) Text("If connection failed, retry uses the same request ID to avoid duplicates. Check Reports before starting a different submission.")
     if (attempted) TextButton(enabled = !busy, onClick = { requestId = UUID.randomUUID().toString(); attempted = false }) {
         Text("Edit as a new submission")
+    }
+    TextButton(onClick = { formStep = 1 }) { Text("Back to item details") }
     }
 }

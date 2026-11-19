@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
@@ -47,7 +48,7 @@ internal fun ConnectedNotice(title: String, detail: String) {
 
 @Composable
 internal fun OfficeDashboard(reports: List<JSONObject>, claims: List<JSONObject>, online: Boolean,
-    onCheckIn: () -> Unit, onInventory: () -> Unit, onClaims: () -> Unit) {
+    onCheckIn: () -> Unit, onInventory: () -> Unit, onClaims: () -> Unit, onUnclaimed: () -> Unit) {
     Text("Lost & Found Office", color = navy, fontSize = 22.sp, fontWeight = FontWeight.Bold)
     Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = navy)) {
@@ -74,7 +75,19 @@ internal fun OfficeDashboard(reports: List<JSONObject>, claims: List<JSONObject>
     } else "Claims will appear when the office service is available.")
     OutlinedButton(onClick = onClaims, modifier = Modifier.fillMaxWidth()) { Text("Open claims queue") }
     OutlinedButton(onClick = onInventory, modifier = Modifier.fillMaxWidth()) { Text("View inventory") }
-    ConnectedNotice("Retention review", "Unclaimed item review requires office policy and a recorded disposition. This action is not available yet.")
+    ConnectedNotice("Retention review", "Review items only after a category retention rule is configured. Any disposition needs a separate office record.")
+    OutlinedButton(onClick = onUnclaimed, modifier = Modifier.fillMaxWidth()) { Text("Review unclaimed items") }
+}
+
+@Composable
+internal fun OfficeUnclaimed(items: List<JSONObject>, online: Boolean, policyCount: Int) {
+    Text("Unclaimed items", color = navy, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+    ConnectedNotice("Retention review", "Items appear only when a configured category rule has reached its retention period. Review custody records before any disposition.")
+    if (!online) ConnectedNotice("Review unavailable", "Connect to the office service to load retention candidates.")
+    else if (policyCount == 0) ConnectedNotice("No retention rules configured", "A technical administrator must set category rules before items can be flagged for review.")
+    else if (items.isEmpty()) ConnectedNotice("Nothing due for review", "No active items have reached a configured retention period.")
+    items.forEach { item -> ConnectedNotice(item.optString("item_name"),
+        "${item.optInt("age_days")} days in custody · ${item.optInt("retention_days")} day rule · ${item.optString("category_id")}") }
 }
 
 @Composable
@@ -104,17 +117,47 @@ internal fun AdminOverview(onRules: () -> Unit, onAudit: () -> Unit) {
 }
 
 @Composable
-internal fun AdminRules() {
+internal fun AdminRules(rules: List<JSONObject>, online: Boolean, onSave: (String, Int, Boolean, Boolean) -> Unit) {
     Text("Category rules", color = navy, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-    ConnectedNotice("Policy configuration", "Category safeguards and retention settings will appear here after the admin API is deployed. Changes cannot be saved from this build.")
-    listOf("Bags", "Keys", "Wallets", "Documents", "Electronics").forEach { category ->
-        ConnectedNotice(category, "Rules unavailable until the policy service is connected.")
+    ConnectedNotice("Policy configuration", "Retention and restricted custody rules are stored by the service. Wallets and documents always require sealing.")
+    if (!online) ConnectedNotice("Rules unavailable", "Connect to the admin service to view or save category rules.")
+    rules.forEach { rule ->
+        val id = rule.optString("category_id")
+        var days by remember(id) { mutableStateOf(if (rule.has("retention_days")) rule.optInt("retention_days").toString() else "") }
+        var restricted by remember(id) { mutableStateOf(rule.optBoolean("restricted", id in listOf("wallet", "documents"))) }
+        var sealed by remember(id) { mutableStateOf(rule.optBoolean("requires_seal", id in listOf("wallet", "documents"))) }
+        Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            border = BorderStroke(1.dp, Color(0xFFDEE3E9))) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(id.replace('_', ' ').replaceFirstChar { it.uppercase() }, color = navy,
+                    fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                if (!rule.has("retention_days")) Text("No saved rule yet", color = muted, fontSize = 12.sp)
+                OutlinedTextField(days, { days = it.filter(Char::isDigit).take(3) },
+                    label = { Text("Retention days") }, modifier = Modifier.fillMaxWidth())
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(restricted, { restricted = it }, enabled = id !in listOf("wallet", "documents"))
+                    Text("Restricted custody", color = navy, fontSize = 13.sp)
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(sealed, { sealed = it }, enabled = id !in listOf("wallet", "documents"))
+                    Text("Seal on receipt", color = navy, fontSize = 13.sp)
+                }
+                Button(enabled = days.toIntOrNull()?.let { it in 1..365 } == true, onClick = {
+                    onSave(id, days.toInt(), restricted, sealed)
+                }, colors = ButtonDefaults.buttonColors(containerColor = blue)) { Text("Save rule") }
+            }
+        }
     }
 }
 
 @Composable
-internal fun AdminAudit() {
+internal fun AdminAudit(events: List<JSONObject>, online: Boolean) {
     Text("Access & audit", color = navy, fontSize = 22.sp, fontWeight = FontWeight.Bold)
     ConnectedNotice("Access boundary", "Students see their own reports and claims. Office staff review custody and ownership. Technical admins do not receive private claim evidence.")
-    ConnectedNotice("Audit events", "Audit history and export require a dedicated admin endpoint. No events are displayed until that endpoint is available.")
+    if (!online) ConnectedNotice("Audit unavailable", "Connect to the admin service to load recent events.")
+    else if (events.isEmpty()) ConnectedNotice("No audit events", "Recorded claim decisions and policy changes will appear here.")
+    events.forEach { event -> ConnectedNotice(event.optString("action").replace('_', ' '),
+        listOf(event.optString("category_id"), event.optString("actor_uid"), event.optString("at"))
+            .filter { it.isNotBlank() }.joinToString(" · ")) }
 }
