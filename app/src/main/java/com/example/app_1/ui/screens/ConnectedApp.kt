@@ -78,6 +78,7 @@ fun ConnectedApp(incomingLink: String? = null, onLinkConsumed: () -> Unit = {}) 
     var notifications by remember { mutableStateOf(emptyList<JSONObject>()) }
     var selected by remember { mutableStateOf<JSONObject?>(null) }
     var reportsTab by rememberSaveable { mutableStateOf("Active") }
+    var pendingDecision by remember { mutableStateOf<Pair<String, String>?>(null) }
     var photoBytes by remember { mutableStateOf<ByteArray?>(null) }
     val notificationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
     LaunchedEffect(identity?.optString("uid")) {
@@ -339,6 +340,19 @@ fun ConnectedApp(incomingLink: String? = null, onLinkConsumed: () -> Unit = {}) 
                             }
                         }
                     }
+                    if (backendOnline && reportsTab != "Unfinished") {
+                        val relevant = claims.filter { claim -> reports.any { it.optString("id") == claim.optString("lost_id") } }
+                        if (relevant.isNotEmpty()) Text("Claim status", color = Color(0xFF112B4B), fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                        relevant.forEach { claim -> ConnectedNotice(
+                            "Ownership request · ${claim.optString("status")}",
+                            when (claim.optString("status")) {
+                                "pending" -> "The office is reviewing your request. Bring private proof of ownership in person."
+                                "approved" -> "The office approved your request. Arrange pickup with staff."
+                                "collected" -> "The item was recorded as handed over."
+                                "rejected" -> "The office could not verify this claim. Contact staff for help."
+                                else -> "Ask the office for the latest status."
+                            }) }
+                    }
                     if (selected != null) {
                         Text("Selected: ${selected!!.optString("item_name")}", style = MaterialTheme.typography.titleMedium)
                         photoBytes?.let { bytes ->
@@ -375,10 +389,9 @@ fun ConnectedApp(incomingLink: String? = null, onLinkConsumed: () -> Unit = {}) 
                                         else -> emptyList()
                                     }
                                     actions.forEach { action ->
-                                        TextButton(enabled = !busy, onClick = { run {
-                                            repository.request("POST", "/v1/claims/${claim.getString("id")}/decision", JSONObject().put("status", action))
-                                            message = "Review saved."; refresh()
-                                        } }) { Text("Mark $action") }
+                                        TextButton(enabled = !busy, onClick = { pendingDecision = claim.getString("id") to action }) {
+                                            Text("Mark $action")
+                                        }
                                     }
                                 }
                             }
@@ -393,6 +406,23 @@ fun ConnectedApp(incomingLink: String? = null, onLinkConsumed: () -> Unit = {}) 
             }
         }
     }
+        }
+        pendingDecision?.let { (claimId, action) ->
+            AlertDialog(onDismissRequest = { pendingDecision = null },
+                title = { Text(if (action == "collected") "Confirm physical handover" else "Confirm claim decision") },
+                text = { Text(when (action) {
+                    "approved" -> "Approve only after checking private ownership evidence in person."
+                    "collected" -> "Mark collected only after the item has been handed to the verified owner."
+                    else -> "Reject this claim after reviewing the available evidence."
+                }) },
+                confirmButton = { TextButton(onClick = {
+                    pendingDecision = null
+                    run {
+                        repository.request("POST", "/v1/claims/$claimId/decision", JSONObject().put("status", action))
+                        message = "Review saved."; refresh()
+                    }
+                }) { Text("Confirm") } },
+                dismissButton = { TextButton(onClick = { pendingDecision = null }) { Text("Cancel") } })
         }
         ConnectedBottomNav(page, role) { destination ->
             page = destination; selected = null; matches = emptyList(); photoBytes = null
