@@ -168,11 +168,16 @@ internal fun ConnectedBottomNav(page: String, role: String, onSelect: (String) -
         Triple("Reports", Icons.Default.List, "Reports"),
         Triple("Matches", Icons.Default.Search, "Matches"),
         Triple("Alerts", Icons.Default.Notifications, "Alerts"),
-    ) else listOf(
-        Triple("Home", Icons.Default.Home, "Home"),
-        Triple("Reports", Icons.Default.List, "Inventory"),
+    ) else if (role == "office_staff") listOf(
+        Triple("Office", Icons.Default.Home, "Office"),
+        Triple("Inventory", Icons.Default.List, "Inventory"),
         Triple("Claims", Icons.Default.CheckCircle, "Claims"),
-        Triple("Alerts", Icons.Default.Notifications, "Alerts"),
+        Triple("Profile", Icons.Default.Person, "Account"),
+    ) else listOf(
+        Triple("Admin", Icons.Default.Home, "Admin"),
+        Triple("Rules", Icons.Default.List, "Rules"),
+        Triple("Audit", Icons.Default.CheckCircle, "Audit"),
+        Triple("Profile", Icons.Default.Person, "Account"),
     )
     NavigationBar(containerColor = Color.White, tonalElevation = 0.dp) {
         destinations.forEach { (destination, icon, label) ->
