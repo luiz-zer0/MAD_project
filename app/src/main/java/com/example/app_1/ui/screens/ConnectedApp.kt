@@ -28,6 +28,8 @@ import com.example.app_1.data.FirebaseRepository
 import com.google.firebase.FirebaseNetworkException
 import com.google.firebase.auth.FirebaseAuthException
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.UUID
@@ -279,7 +281,24 @@ fun ConnectedApp(incomingLink: String? = null, onLinkConsumed: () -> Unit = {}) 
                         message = "Rule saved."
                     }
                 }
-                "Audit" -> AdminAudit(auditEvents, adminOnline)
+                "Audit" -> AdminAudit(auditEvents, adminOnline) {
+                    val rows = auditEvents.map { event ->
+                        RedactedAuditRow(event.optString("action"), event.optString("category_id"), event.optString("at"))
+                    }
+                    scope.launch {
+                        runCatching {
+                            withContext(Dispatchers.IO) {
+                                saveAuditCsvToDownloads(context, redactedAuditCsv(rows))
+                            }
+                        }.onSuccess { name ->
+                            messageIsSuccess = true
+                            message = "Saved $name to Downloads/LostAndFound."
+                        }.onFailure {
+                            messageIsSuccess = false
+                            message = "Could not save the CSV. Please try again."
+                        }
+                    }
+                }
                 "Inventory" -> {
                     Text("Inventory", color = Color(0xFF112B4B), fontSize = 22.sp, fontWeight = FontWeight.Bold)
                     if (!backendOnline) ConnectedNotice("Inventory unavailable", "Connect to the office service to review items in custody.")

@@ -152,7 +152,7 @@ internal fun AdminRules(rules: List<JSONObject>, online: Boolean, onSave: (Strin
 }
 
 @Composable
-internal fun AdminAudit(events: List<JSONObject>, online: Boolean) {
+internal fun AdminAudit(events: List<JSONObject>, online: Boolean, onExport: () -> Unit) {
     Text("Access & audit", color = navy, fontSize = 22.sp, fontWeight = FontWeight.Bold)
     ConnectedNotice("Access boundary", "Students see their own reports and claims. Office staff review custody and ownership. Technical admins do not receive private claim evidence.")
     if (!online) ConnectedNotice("Audit unavailable", "Connect to the admin service to load recent events.")
@@ -160,4 +160,11 @@ internal fun AdminAudit(events: List<JSONObject>, online: Boolean) {
     events.forEach { event -> ConnectedNotice(event.optString("action").replace('_', ' '),
         listOf(event.optString("category_id"), event.optString("actor_uid"), event.optString("at"))
             .filter { it.isNotBlank() }.joinToString(" · ")) }
+    if (online && events.isNotEmpty()) {
+        ConnectedNotice("Local export", "Save a CSV to this device's Downloads folder. It contains action, category and time only.")
+        OutlinedButton(enabled = android.os.Build.VERSION.SDK_INT >= 29, onClick = onExport,
+            modifier = Modifier.fillMaxWidth()) { Text("Save redacted CSV") }
+        if (android.os.Build.VERSION.SDK_INT < 29)
+            Text("Downloads export requires Android 10 or newer.", color = muted, fontSize = 12.sp)
+    }
 }
