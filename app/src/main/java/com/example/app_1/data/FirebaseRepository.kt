@@ -88,6 +88,17 @@ class FirebaseRepository(context: Context) {
         return request("GET", "/v1/me")
     }
 
+    /** Navigation can start from the verified Firebase session while the reports API is offline. */
+    suspend fun localIdentity(): JSONObject {
+        val user = auth.currentUser ?: error("Sign in first.")
+        require(user.isEmailVerified && user.email.orEmpty().endsWith("@strathmore.edu", true)) {
+            "A verified university email is required."
+        }
+        val claim = user.getIdToken(false).await().claims["role"] as? String
+        val role = claim?.takeIf { it in setOf("student", "office_staff", "admin") } ?: "student"
+        return JSONObject().put("uid", user.uid).put("role", role)
+    }
+
     suspend fun registerPush() {
         if (!BuildConfig.USE_FIREBASE_EMULATORS) {
             com.google.firebase.messaging.FirebaseMessaging.getInstance().isAutoInitEnabled = true

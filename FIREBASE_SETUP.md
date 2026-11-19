@@ -116,6 +116,13 @@ default Hosting site serves `.well-known/assetlinks.json`; the device reports th
 verified. The `firebase.properties` file is local and must not be committed. No Admin key belongs
 in the APK. A release build needs its own signing SHA hashes and another App Link check.
 
+After email-link sign-in, the app enters the student Home screen using the verified Firebase user
+and ID-token role claim. No student roster is required for the default student role. Staff/admin
+roles still require server-assigned custom claims. Home and navigation remain available if the
+reports API is offline; report lists, notifications, submissions and ML suggestions do not become
+live until the API, Firestore and worker are reachable. Students who find an item are directed to
+the office, because only staff can record found inventory in the current backend policy.
+
 1. Open the link received at the university email address on the connected Android phone to
    complete the first end-to-end sign-in test. The same link creates an account for a new user.
 2. Provision Firestore and Cloud Storage in a chosen region if they are not already available.
