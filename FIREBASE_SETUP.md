@@ -5,10 +5,12 @@ one FastAPI service, and a separate worker using the existing scikit-learn featu
 There is no CLIP, image inference, or vector database. Existing experiment scripts and results
 are not replaced. Photographs are viewed by their uploader and authorized staff only.
 
-Validation on 18 November 2026: Android debug APK built successfully and all 4 existing Android
-unit tests passed; all 14 Python tests passed with real local Firebase emulators; Firestore and
-Storage authorization tests passed. Android device/UI behavior, real-project FCM delivery and
-the Docker image are not yet verified. The live cloud project is intentionally not configured.
+Validation on 19 November 2026: the Android debug APK and unit tests passed. The Figma-based
+email-link screen was installed and inspected on a connected Android phone. Firebase project
+`lost-and-found-9671c` accepts email-link requests, and its Hosting domain is verified as an
+Android App Link on that phone. Completing a real email-link sign-in still requires opening the
+received link. The live API and worker are not deployed; reports and ML matching are unavailable
+after sign-in until those services are reachable.
 
 ## Local setup (no Firebase account required)
 
@@ -106,25 +108,29 @@ cd firebase
 node rules.test.mjs
 ```
 
-## Connecting a real project later
+## Live project status and remaining deployment
 
-No cloud project, paid plan or public deployment is created by this setup.
+Firebase project `lost-and-found-9671c` is configured for the Android debug app. Its Email/Password
+provider accepts passwordless email links, and the debug SHA-1 and SHA-256 are registered. The
+default Hosting site serves `.well-known/assetlinks.json`; the device reports the domain as
+verified. The `firebase.properties` file is local and must not be committed. No Admin key belongs
+in the APK. A release build needs its own signing SHA hashes and another App Link check.
 
-1. Create a Firebase project, register Android package `com.example.app_1`, enable
-   Email/Password Authentication, and create Firestore and Cloud Storage in a chosen region.
-   Review the current Firebase billing requirements before enabling Storage or deployment.
-2. Copy the Android project's `firebase.properties.example` to `firebase.properties` and fill
-   the identifiers from its `google-services.json`. This app initializes Firebase explicitly,
-   so it does not require the Google Services Gradle plugin. Never put Admin keys in this file.
-3. Deploy `firebase/firestore.rules`, `firebase/storage.rules` and indexes to your selected
-   project using Firebase CLI with an explicit `--project YOUR_PROJECT_ID`.
+1. Open the link received at the university email address on the connected Android phone to
+   complete the first end-to-end sign-in test. The same link creates an account for a new user.
+2. Provision Firestore and Cloud Storage in a chosen region if they are not already available.
+   Review current billing requirements before enabling Storage or deploying paid services.
+3. Deploy `firebase/firestore.rules`, `firebase/storage.rules` and indexes with an explicit
+   `--project lost-and-found-9671c` once those products are provisioned.
 4. Deploy the API and worker with `FIREBASE_PROJECT_ID`, `MODEL_PATH` and Application Default
    Credentials for a dedicated service account. Unset all emulator environment variables and
    set `APP_ENV=production`. Use HTTPS for the API URL in the Android configuration.
 5. Grant staff custom claims through trusted administrative tooling. The local seed script
    intentionally cannot assign production roles. Users must refresh/sign in again after a role change.
-6. Verify cloud sign-in/email delivery, Storage access, FCM notification permission/delivery,
-   API/worker restart recovery and Android runtime behavior before using real reports.
+6. Verify Storage access, FCM delivery, API/worker restart recovery and Android report behavior
+   before using real reports. The current local `ML_API_BASE_URL=http://127.0.0.1:8000` only
+   works on a USB-connected phone with `adb reverse tcp:8000 tcp:8000` and a compatible API
+   running on the computer; no such live-project API is running now.
 
 The Dockerfile packages the API and trusted exported artifact. Deploy the worker using the same
 image with command `python -m service.worker`. The container recipe is provided but has not been

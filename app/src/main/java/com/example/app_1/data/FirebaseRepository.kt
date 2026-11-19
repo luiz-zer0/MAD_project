@@ -6,6 +6,7 @@ import com.example.app_1.BuildConfig
 import com.google.firebase.FirebaseApp
 import com.google.firebase.FirebaseOptions
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.ActionCodeSettings
 import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.tasks.await
@@ -16,6 +17,7 @@ import java.net.URL
 
 /** Credentials come from Firebase Auth. No service-account key belongs in the APK. */
 class FirebaseRepository(context: Context) {
+    private val preferences = context.getSharedPreferences("email_link_sign_in", Context.MODE_PRIVATE)
     private val app: FirebaseApp = FirebaseApp.getApps(context).firstOrNull() ?: FirebaseApp.initializeApp(
         context, FirebaseOptions.Builder()
             .setProjectId(BuildConfig.FIREBASE_PROJECT_ID)
@@ -25,6 +27,30 @@ class FirebaseRepository(context: Context) {
             .setStorageBucket(BuildConfig.FIREBASE_STORAGE_BUCKET).build())
     val auth: FirebaseAuth = FirebaseAuth.getInstance(app)
     private val storage = FirebaseStorage.getInstance(app)
+
+    suspend fun sendEmailLink(email: String) {
+        val address = email.trim().lowercase()
+        require(address.endsWith("@strathmore.edu")) { "Use your Strathmore email address." }
+        val settings = ActionCodeSettings.newBuilder()
+            .setUrl("https://${BuildConfig.FIREBASE_PROJECT_ID}.firebaseapp.com/finishSignIn")
+            .setHandleCodeInApp(true)
+            .setAndroidPackageName("com.example.app_1", false, null)
+            .build()
+        auth.sendSignInLinkToEmail(address, settings).await()
+        preferences.edit().putString("pending_email", address).apply()
+    }
+
+    fun isEmailSignInLink(link: String): Boolean = auth.isSignInWithEmailLink(link)
+
+    fun hasPendingEmailLink(): Boolean = !preferences.getString("pending_email", null).isNullOrBlank()
+
+    suspend fun completeEmailLink(link: String, enteredEmail: String = "") {
+        require(isEmailSignInLink(link)) { "This is not a valid sign-in link." }
+        val email = preferences.getString("pending_email", null) ?: enteredEmail.trim().lowercase()
+        require(email.endsWith("@strathmore.edu")) { "Enter the Strathmore email that received this link." }
+        auth.signInWithEmailLink(email, link).await()
+        preferences.edit().remove("pending_email").apply()
+    }
 
     init {
         if (BuildConfig.USE_FIREBASE_EMULATORS) {

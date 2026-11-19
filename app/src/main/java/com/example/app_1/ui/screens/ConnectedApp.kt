@@ -4,6 +4,8 @@ import android.graphics.BitmapFactory
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -11,12 +13,20 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.app_1.BuildConfig
+import com.example.app_1.R
 import com.example.app_1.data.FirebaseRepository
+import com.google.firebase.FirebaseNetworkException
+import com.google.firebase.auth.FirebaseAuthException
 import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
@@ -27,9 +37,21 @@ private fun JSONObject.rows(key: String): List<JSONObject> {
     return (0 until array.length()).map { array.getJSONObject(it) }
 }
 
+private fun signInError(error: Exception): String = when {
+    error is FirebaseNetworkException || error is java.net.UnknownHostException ->
+        "You’re offline. Reconnect and try again."
+    else -> when ((error as? FirebaseAuthException)?.errorCode) {
+    "ERROR_INVALID_EMAIL" -> "Check your email address and try again."
+    "ERROR_TOO_MANY_REQUESTS" -> "Too many attempts. Please wait a moment and try again."
+    "ERROR_EXPIRED_ACTION_CODE", "ERROR_INVALID_ACTION_CODE" -> "This link has expired. Request a new one."
+    "ERROR_OPERATION_NOT_ALLOWED" -> "Email sign-in is unavailable right now. Please try again later."
+    else -> "Something went wrong. Please try again."
+    }
+}
+
 /** Connected workflow. The old sample screens remain available in source, not as authorization. */
 @Composable
-fun ConnectedApp() {
+fun ConnectedApp(incomingLink: String? = null, onLinkConsumed: () -> Unit = {}) {
     val context = LocalContext.current
     val configured = BuildConfig.FIREBASE_PROJECT_ID.isNotBlank() && BuildConfig.FIREBASE_APP_ID.isNotBlank() &&
         BuildConfig.FIREBASE_API_KEY.isNotBlank() && BuildConfig.ML_API_BASE_URL.isNotBlank()
@@ -44,9 +66,10 @@ fun ConnectedApp() {
     val scope = rememberCoroutineScope()
     var identity by remember { mutableStateOf<JSONObject?>(null) }
     var email by rememberSaveable { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf("") }
+    var messageIsSuccess by remember { mutableStateOf(false) }
+    val signInScroll = rememberScrollState()
     var page by rememberSaveable { mutableStateOf("Reports") }
     var reports by remember { mutableStateOf(emptyList<JSONObject>()) }
     var matches by remember { mutableStateOf(emptyList<JSONObject>()) }
@@ -66,7 +89,13 @@ fun ConnectedApp() {
         scope.launch {
             busy = true
             message = ""
-            try { action() } catch (e: Exception) { message = e.message ?: "Connection failed. Try again." }
+            messageIsSuccess = false
+            try { action() } catch (e: Exception) {
+                message = if (identity == null && repository.auth.currentUser?.isEmailVerified == true) {
+                    messageIsSuccess = true
+                    "Signed in. Reports are temporarily unavailable."
+                } else if (identity == null) signInError(e) else e.message ?: "Connection failed. Try again."
+            }
             finally { busy = false }
         }
     }
@@ -80,8 +109,101 @@ fun ConnectedApp() {
             if (repository.checkEmailVerified()) {
                 identity = repository.refreshIdentity()
                 refresh()
-            } else message = "Check your inbox and spam folder for the Firebase verification link."
+            }
         }
+    }
+    LaunchedEffect(message) {
+        if (identity == null && message.isNotBlank()) signInScroll.animateScrollTo(signInScroll.maxValue)
+    }
+    LaunchedEffect(incomingLink, email) {
+        if (!incomingLink.isNullOrBlank() &&
+            (repository.hasPendingEmailLink() || email.trim().endsWith("@strathmore.edu", ignoreCase = true))) run {
+            try {
+                if (!repository.isEmailSignInLink(incomingLink)) {
+                    message = "This link has expired. Request a new one."
+                } else {
+                    repository.completeEmailLink(incomingLink, email)
+                    identity = repository.refreshIdentity()
+                    refresh()
+                }
+            } finally { onLinkConsumed() }
+        }
+    }
+    if (identity == null) {
+        Column(Modifier.fillMaxSize().background(Color.White).safeDrawingPadding().imePadding().verticalScroll(signInScroll)) {
+            Box(Modifier.fillMaxWidth().height(376.dp)) {
+                Image(painterResource(R.drawable.signin_figma_background), null,
+                    Modifier.fillMaxSize(), contentScale = ContentScale.Crop,
+                    alignment = Alignment.TopCenter)
+                Text("Sign in", Modifier.align(Alignment.CenterStart).padding(start = 20.dp),
+                    color = Color(0xFF102B49), fontSize = 40.sp, fontWeight = FontWeight.Bold)
+            }
+            Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                if (repository.auth.currentUser?.isEmailVerified == true) {
+                    Text("You're signed in.", color = Color(0xFF102B49),
+                        fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
+                    Text("Your reports are temporarily unavailable. Try again in a moment.",
+                        color = Color(0xFF102B49), fontSize = 16.sp, lineHeight = 24.sp)
+                    Button(enabled = !busy, modifier = Modifier.fillMaxWidth().height(50.dp),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF245ECA)),
+                        onClick = { run { identity = repository.refreshIdentity(); refresh() } }) {
+                        Text("Try again")
+                    }
+                    TextButton(onClick = {
+                        repository.auth.signOut()
+                        message = ""
+                        email = ""
+                    }) { Text("Sign out") }
+                    if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
+                    if (message.isNotBlank()) Text(message,
+                        Modifier.fillMaxWidth().background(Color(0xFFE8F5EC), RoundedCornerShape(10.dp)).padding(14.dp),
+                        color = Color(0xFF17613A), fontSize = 14.sp)
+                    return@Column
+                }
+                Text("Use your Strathmore University email. We’ll send a one-time sign-in link to your inbox.",
+                    color = Color(0xFF102B49), fontSize = 16.sp, lineHeight = 24.sp)
+                Spacer(Modifier.height(6.dp))
+                Text("University email", color = Color(0xFF102B49), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                OutlinedTextField(email, { email = it }, placeholder = { Text("name@strathmore.edu") },
+                    singleLine = true, shape = RoundedCornerShape(10.dp), modifier = Modifier.fillMaxWidth())
+                Row(Modifier.fillMaxWidth().background(Color(0xFFEDF3FE), RoundedCornerShape(10.dp)).padding(14.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(painterResource(R.drawable.signin_shield_check), null, tint = Color.Unspecified)
+                    Text("Only @strathmore.edu addresses can receive a sign-in link.",
+                        color = Color(0xFF102B49), fontSize = 13.sp, lineHeight = 19.sp)
+                }
+                if (!incomingLink.isNullOrBlank() && !repository.hasPendingEmailLink()) {
+                    Text("Enter the email address that received the link to finish signing in.",
+                        color = Color(0xFF102B49), fontSize = 14.sp)
+                }
+                Button(enabled = !busy && email.trim().endsWith("@strathmore.edu", ignoreCase = true),
+                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF245ECA)),
+                    onClick = { run {
+                        repository.sendEmailLink(email)
+                        messageIsSuccess = true
+                        message = "Link sent! Check your inbox."
+                    } }) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text("Email me a sign-in link", fontSize = 14.sp)
+                        Icon(painterResource(R.drawable.signin_arrow_right), null, tint = Color.Unspecified)
+                    }
+                }
+                if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
+                if (message.isNotBlank()) {
+                    Text(message,
+                        Modifier.fillMaxWidth().background(
+                            if (messageIsSuccess) Color(0xFFE8F5EC) else Color(0xFFFFF1EF),
+                            RoundedCornerShape(10.dp)).padding(14.dp),
+                        color = if (messageIsSuccess) Color(0xFF17613A) else Color(0xFF9B2C24),
+                        fontSize = 14.sp, lineHeight = 20.sp)
+                }
+            }
+        }
+        return
     }
     Column(Modifier.fillMaxSize().safeDrawingPadding().imePadding().verticalScroll(rememberScrollState()).padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -89,36 +211,7 @@ fun ConnectedApp() {
         if (BuildConfig.USE_FIREBASE_EMULATORS) Text("Local emulator â€¢ fictional test accounts only")
         if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
         if (message.isNotBlank()) Text(message, style = MaterialTheme.typography.bodyMedium)
-        if (identity == null) {
-            Text("Sign in with your verified university account. Staff access is assigned by an administrator.")
-            OutlinedTextField(email, { email = it }, label = { Text("University email") }, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(password, { password = it }, label = { Text("Password") }, visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth())
-            Button(enabled = !busy, onClick = { run {
-                repository.signIn(email, password)
-                password = ""
-                if (repository.checkEmailVerified()) {
-                    identity = repository.refreshIdentity()
-                    refresh()
-                } else message = "Email not verified yet. Check your inbox, then tap Check verification."
-            } }) { Text("Sign in") }
-            OutlinedButton(enabled = !busy, onClick = { run {
-                repository.register(email, password)
-                password = ""
-                message = "Verification email sent. Verify it, then press Check verification."
-            } }) { Text("Create student account") }
-            if (repository.auth.currentUser != null) {
-                TextButton(enabled = !busy, onClick = { run {
-                    if (repository.checkEmailVerified()) {
-                        identity = repository.refreshIdentity()
-                        refresh()
-                    } else message = "Still waiting for verification. Check spam or resend the email."
-                } }) { Text("Check verification") }
-                TextButton(enabled = !busy, onClick = { run {
-                    repository.resendVerificationEmail()
-                    message = "Verification email requested again. Check your inbox and spam folder."
-                } }) { Text("Resend verification email") }
-            }
-        } else {
+        if (identity != null) {
             val staff = identity!!.optString("role") in listOf("office_staff", "admin")
             Text("${repository.auth.currentUser?.email} Â· ${identity!!.optString("role")}")
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

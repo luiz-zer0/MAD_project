@@ -1,9 +1,11 @@
 package com.example.app_1
 
 import android.os.Bundle
+import android.content.Intent
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -62,14 +64,24 @@ import com.example.app_1.ui.screens.sampleCandidates
 import com.example.app_1.ui.theme.App_1Theme
 
 class MainActivity : ComponentActivity() {
+    private val incomingLink = mutableStateOf<String?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+        incomingLink.value = intent?.dataString
+        enableEdgeToEdge(statusBarStyle = SystemBarStyle.light(
+            android.graphics.Color.WHITE, android.graphics.Color.WHITE))
         setContent {
             App_1Theme {
-                com.example.app_1.ui.screens.ConnectedApp()
+                com.example.app_1.ui.screens.ConnectedApp(incomingLink.value) { incomingLink.value = null }
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        incomingLink.value = intent.dataString
     }
 }
 
