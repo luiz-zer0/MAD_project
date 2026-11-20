@@ -1,0 +1,10 @@
+<component name="libraryTable">
+  <library name="Gradle: com.google.android.datatransport:transport-backend-cct:3.1.9@aar" external-system-id="GRADLE">
+    <CLASSES>
+      <root url="file://$USER_HOME$/.gradle/caches/9.9.0/transforms/e827cb4c1c3e62adddd25f009e15e81a/transformed/transport-backend-cct-3.1.9/AndroidManifest.xml" />
+      <root url="jar://$USER_HOME$/.gradle/caches/9.9.0/transforms/e827cb4c1c3e62adddd25f009e15e81a/transformed/transport-backend-cct-3.1.9/jars/classes.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>

@@ -25,8 +25,6 @@ import androidx.compose.ui.unit.sp
 import com.example.app_1.BuildConfig
 import com.example.app_1.R
 import com.example.app_1.data.FirebaseRepository
-import com.google.firebase.FirebaseNetworkException
-import com.google.firebase.auth.FirebaseAuthException
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -37,18 +35,6 @@ import java.util.UUID
 private fun JSONObject.rows(key: String): List<JSONObject> {
     val array = optJSONArray(key) ?: JSONArray()
     return (0 until array.length()).map { array.getJSONObject(it) }
-}
-
-private fun signInError(error: Exception): String = when {
-    error is FirebaseNetworkException || error is java.net.UnknownHostException ->
-        "You’re offline. Reconnect and try again."
-    else -> when ((error as? FirebaseAuthException)?.errorCode) {
-    "ERROR_INVALID_EMAIL" -> "Check your email address and try again."
-    "ERROR_TOO_MANY_REQUESTS" -> "Too many attempts. Please wait a moment and try again."
-    "ERROR_EXPIRED_ACTION_CODE", "ERROR_INVALID_ACTION_CODE" -> "This link has expired. Request a new one."
-    "ERROR_OPERATION_NOT_ALLOWED" -> "Email sign-in is unavailable right now. Please try again later."
-    else -> "Something went wrong. Please try again."
-    }
 }
 
 /** Connected workflow. The old sample screens remain available in source, not as authorization. */

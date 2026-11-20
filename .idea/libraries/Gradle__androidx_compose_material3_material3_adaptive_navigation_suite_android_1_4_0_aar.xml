@@ -1,0 +1,13 @@
+<component name="libraryTable">
+  <library name="Gradle: androidx.compose.material3:material3-adaptive-navigation-suite-android:1.4.0@aar" external-system-id="GRADLE">
+    <CLASSES>
+      <root url="file://$USER_HOME$/.gradle/caches/9.9.0/transforms/0ed3308da8e3303ae0dedefec9ed4599/transformed/material3-adaptive-navigation-suite/AndroidManifest.xml" />
+      <root url="jar://$USER_HOME$/.gradle/caches/9.9.0/transforms/0ed3308da8e3303ae0dedefec9ed4599/transformed/material3-adaptive-navigation-suite/jars/classes.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/androidx.compose.material3/material3-adaptive-navigation-suite-android/1.4.0/3601fed37817e48ebf7721596a52cc92e3f81e26/material3-adaptive-navigation-suite-android-1.4.0-sources.jar!/" />
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/androidx.compose.material3/material3-adaptive-navigation-suite-android/1.4.0/9b39a70db855f6903e0126da0666046866420ad7/material3-adaptive-navigation-suite-1.4.0-samples-sources.jar!/" />
+    </SOURCES>
+  </library>
+</component>
