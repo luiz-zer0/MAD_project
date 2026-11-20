@@ -45,7 +45,8 @@ private fun signInError(error: Exception): String = when {
     else -> when ((error as? FirebaseAuthException)?.errorCode) {
     "ERROR_INVALID_EMAIL" -> "Check your email address and try again."
     "ERROR_TOO_MANY_REQUESTS" -> "Too many attempts. Please wait a moment and try again."
-    "ERROR_EXPIRED_ACTION_CODE", "ERROR_INVALID_ACTION_CODE" -> "This link has expired. Request a new one."
+    "ERROR_EXPIRED_ACTION_CODE", "ERROR_INVALID_ACTION_CODE" -> "This link has expired or was already used. Request a new one."
+    "ERROR_INVALID_CREDENTIAL" -> "This link doesn't match that email. Check the address and try again."
     "ERROR_OPERATION_NOT_ALLOWED" -> "Email sign-in is unavailable right now. Please try again later."
     else -> "Something went wrong. Please try again."
     }
@@ -68,6 +69,8 @@ fun ConnectedApp(incomingLink: String? = null, onLinkConsumed: () -> Unit = {}) 
     val scope = rememberCoroutineScope()
     var identity by remember { mutableStateOf<JSONObject?>(null) }
     var email by rememberSaveable { mutableStateOf("") }
+    var pastedLink by rememberSaveable { mutableStateOf("") }
+    var showPasteLink by rememberSaveable { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf("") }
     var messageIsSuccess by remember { mutableStateOf(false) }
@@ -157,16 +160,16 @@ fun ConnectedApp(incomingLink: String? = null, onLinkConsumed: () -> Unit = {}) 
     LaunchedEffect(incomingLink, email) {
         if (!incomingLink.isNullOrBlank() &&
             (repository.hasPendingEmailLink() || email.trim().endsWith("@strathmore.edu", ignoreCase = true))) run {
-            try {
-                if (!repository.isEmailSignInLink(incomingLink)) {
-                    message = "This link has expired. Request a new one."
-                } else {
-                    repository.completeEmailLink(incomingLink, email)
-                    identity = repository.localIdentity()
-                    page = when (identity?.optString("role")) { "office_staff" -> "Office"; "admin" -> "Admin"; else -> "Home" }
-                    runCatching { refresh() }.onFailure { backendOnline = false }
-                }
-            } finally { onLinkConsumed() }
+            if (!repository.isEmailSignInLink(incomingLink)) {
+                message = "This link has expired. Request a new one."
+                onLinkConsumed()
+            } else {
+                repository.completeEmailLink(incomingLink, email)
+                identity = repository.localIdentity()
+                page = when (identity?.optString("role")) { "office_staff" -> "Office"; "admin" -> "Admin"; else -> "Home" }
+                onLinkConsumed()
+                runCatching { refresh() }.onFailure { backendOnline = false }
+            }
         }
     }
     if (identity == null) {
@@ -188,7 +191,11 @@ fun ConnectedApp(incomingLink: String? = null, onLinkConsumed: () -> Unit = {}) 
                     Button(enabled = !busy, modifier = Modifier.fillMaxWidth().height(50.dp),
                         shape = RoundedCornerShape(10.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF245ECA)),
-                        onClick = { run { identity = repository.localIdentity(); page = "Home"; runCatching { refresh() } } }) {
+                        onClick = { run {
+                            identity = repository.localIdentity()
+                            page = when (identity?.optString("role")) { "office_staff" -> "Office"; "admin" -> "Admin"; else -> "Home" }
+                            runCatching { refresh() }.onFailure { backendOnline = false }
+                        } }) {
                         Text("Try again")
                     }
                     TextButton(onClick = {
@@ -214,8 +221,8 @@ fun ConnectedApp(incomingLink: String? = null, onLinkConsumed: () -> Unit = {}) 
                     Text("Only @strathmore.edu addresses can receive a sign-in link.",
                         color = Color(0xFF102B49), fontSize = 13.sp, lineHeight = 19.sp)
                 }
-                if (!incomingLink.isNullOrBlank() && !repository.hasPendingEmailLink()) {
-                    Text("Enter the email address that received the link to finish signing in.",
+                if (!incomingLink.isNullOrBlank()) {
+                    Text("Use the email address that received this link. You can correct it here if this phone sent a link for someone else.",
                         color = Color(0xFF102B49), fontSize = 14.sp)
                 }
                 Button(enabled = !busy && email.trim().endsWith("@strathmore.edu", ignoreCase = true),
@@ -231,6 +238,27 @@ fun ConnectedApp(incomingLink: String? = null, onLinkConsumed: () -> Unit = {}) 
                         Text("Email me a sign-in link", fontSize = 14.sp)
                         Icon(painterResource(R.drawable.signin_arrow_right), null, tint = Color.Unspecified)
                     }
+                }
+                TextButton(onClick = { showPasteLink = !showPasteLink }) {
+                    Text(if (showPasteLink) "Hide link entry" else "Link opened in a browser? Paste it here")
+                }
+                if (showPasteLink) {
+                    Text("Copy the full sign-in link from your email. Enter the same university email above, then paste the link below.",
+                        color = Color(0xFF697586), fontSize = 13.sp, lineHeight = 19.sp)
+                    OutlinedTextField(pastedLink, { pastedLink = it.trim() },
+                        label = { Text("Full sign-in link") }, minLines = 2,
+                        shape = RoundedCornerShape(10.dp), modifier = Modifier.fillMaxWidth())
+                    Button(enabled = !busy && email.trim().endsWith("@strathmore.edu", ignoreCase = true)
+                        && pastedLink.startsWith("https://"),
+                        modifier = Modifier.fillMaxWidth().height(50.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF245ECA)),
+                        onClick = { run {
+                            repository.completeEmailLink(pastedLink, email)
+                            identity = repository.localIdentity()
+                            page = when (identity?.optString("role")) { "office_staff" -> "Office"; "admin" -> "Admin"; else -> "Home" }
+                            pastedLink = ""
+                            runCatching { refresh() }.onFailure { backendOnline = false }
+                        } }) { Text("Finish sign-in") }
                 }
                 if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
                 if (message.isNotBlank()) {

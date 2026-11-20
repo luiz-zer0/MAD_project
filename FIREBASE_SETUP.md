@@ -125,6 +125,12 @@ the office, because only staff can record found inventory in the current backend
 
 1. Open the link received at the university email address on the connected Android phone to
    complete the first end-to-end sign-in test. The same link creates an account for a new user.
+   On a different phone, install the same debug APK and enter the email address that received
+   the link. If the email link opens in a browser, copy its full URL and use the app's
+   "Link opened in a browser? Paste it here" option. A failed attempt keeps the link available
+   so the address can be corrected. The link is single use.
+   A build signed with another computer's debug key needs that SHA-256 in Firebase Android
+   settings and Hosting `assetlinks.json` before automatic App Link opening will verify.
 2. Provision Firestore and Cloud Storage in a chosen region if they are not already available.
    Review current billing requirements before enabling Storage or deploying paid services.
 3. Deploy `firebase/firestore.rules`, `firebase/storage.rules` and indexes with an explicit
@@ -138,6 +144,8 @@ the office, because only staff can record found inventory in the current backend
    before using real reports. The current local `ML_API_BASE_URL=http://127.0.0.1:8000` only
    works on a USB-connected phone with `adb reverse tcp:8000 tcp:8000` and a compatible API
    running on the computer; no such live-project API is running now.
+   The API address is local to each phone: on a second phone, `127.0.0.1` refers to that phone.
+   Firebase email sign-in can succeed over the internet while reports still show unavailable.
 
 The Dockerfile packages the API and trusted exported artifact. Deploy the worker using the same
 image with command `python -m service.worker`. The container recipe is provided but has not been
