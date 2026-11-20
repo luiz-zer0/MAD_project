@@ -1,0 +1,12 @@
+<component name="libraryTable">
+  <library name="Gradle: androidx.compose.material3.adaptive:adaptive-android:1.2.0@aar" external-system-id="GRADLE">
+    <CLASSES>
+      <root url="file://$USER_HOME$/.gradle/caches/9.9.0/transforms/f64ae13e8c8e8c55422890553a6522bd/transformed/adaptive/AndroidManifest.xml" />
+      <root url="jar://$USER_HOME$/.gradle/caches/9.9.0/transforms/f64ae13e8c8e8c55422890553a6522bd/transformed/adaptive/jars/classes.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/androidx.compose.material3.adaptive/adaptive-android/1.2.0/c5bb311b641a2b7a76e4507fd8d14e1b2532103/adaptive-android-1.2.0-sources.jar!/" />
+    </SOURCES>
+  </library>
+</component>

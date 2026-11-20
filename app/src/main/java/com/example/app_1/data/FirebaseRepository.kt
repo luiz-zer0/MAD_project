@@ -15,9 +15,6 @@ import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 
-internal fun emailForSignInLink(entered: String, pending: String?): String =
-    entered.trim().lowercase().ifBlank { pending.orEmpty().trim().lowercase() }
-
 /** Credentials come from Firebase Auth. No service-account key belongs in the APK. */
 class FirebaseRepository(context: Context) {
     private val preferences = context.getSharedPreferences("email_link_sign_in", Context.MODE_PRIVATE)
@@ -49,9 +46,7 @@ class FirebaseRepository(context: Context) {
 
     suspend fun completeEmailLink(link: String, enteredEmail: String = "") {
         require(isEmailSignInLink(link)) { "This is not a valid sign-in link." }
-        // The user may open the link on a different device or share this phone with someone else.
-        // Prefer the address they entered for this link over an older local request.
-        val email = emailForSignInLink(enteredEmail, preferences.getString("pending_email", null))
+        val email = preferences.getString("pending_email", null) ?: enteredEmail.trim().lowercase()
         require(email.endsWith("@strathmore.edu")) { "Enter the Strathmore email that received this link." }
         auth.signInWithEmailLink(email, link).await()
         preferences.edit().remove("pending_email").apply()
