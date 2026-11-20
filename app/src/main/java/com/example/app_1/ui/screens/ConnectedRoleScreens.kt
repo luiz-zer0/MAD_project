@@ -152,19 +152,69 @@ internal fun AdminRules(rules: List<JSONObject>, online: Boolean, onSave: (Strin
 }
 
 @Composable
-internal fun AdminAudit(events: List<JSONObject>, online: Boolean, onExport: () -> Unit) {
+internal fun AdminAudit(events: List<JSONObject>, online: Boolean, account: JSONObject?, selfUid: String, busy: Boolean,
+                        onFind: (String) -> Unit, onRole: (String, String) -> Unit, onExport: () -> Unit) {
+    var selectedTab by remember { mutableIntStateOf(0) }
+    var email by remember { mutableStateOf("") }
+    var pendingRole by remember { mutableStateOf<String?>(null) }
+    if (pendingRole != null && account != null) {
+        AlertDialog(onDismissRequest = { pendingRole = null },
+            title = { Text("Change account role?") },
+            text = { Text("Set ${account.optString("email")} to ${pendingRole!!.replace('_', ' ')}?") },
+            confirmButton = { TextButton(onClick = {
+                onRole(account.optString("uid"), pendingRole!!)
+                pendingRole = null
+            }) { Text("Confirm") } },
+            dismissButton = { TextButton(onClick = { pendingRole = null }) { Text("Cancel") } })
+    }
     Text("Access & audit", color = navy, fontSize = 22.sp, fontWeight = FontWeight.Bold)
     ConnectedNotice("Access boundary", "Students see their own reports and claims. Office staff review custody and ownership. Technical admins do not receive private claim evidence.")
-    if (!online) ConnectedNotice("Audit unavailable", "Connect to the admin service to load recent events.")
-    else if (events.isEmpty()) ConnectedNotice("No audit events", "Recorded claim decisions and policy changes will appear here.")
-    events.forEach { event -> ConnectedNotice(event.optString("action").replace('_', ' '),
-        listOf(event.optString("category_id"), event.optString("actor_uid"), event.optString("at"))
-            .filter { it.isNotBlank() }.joinToString(" · ")) }
-    if (online && events.isNotEmpty()) {
-        ConnectedNotice("Local export", "Save a CSV to this device's Downloads folder. It contains action, category and time only.")
-        OutlinedButton(enabled = android.os.Build.VERSION.SDK_INT >= 29, onClick = onExport,
-            modifier = Modifier.fillMaxWidth()) { Text("Save redacted CSV") }
-        if (android.os.Build.VERSION.SDK_INT < 29)
-            Text("Downloads export requires Android 10 or newer.", color = muted, fontSize = 12.sp)
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        OutlinedButton(onClick = { selectedTab = 0 }) { Text("Access & roles") }
+        OutlinedButton(onClick = { selectedTab = 1 }) { Text("Audit activity") }
+    }
+    if (selectedTab == 0) {
+        Text("Permission boundaries", color = navy, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+        ConnectedNotice("Office reviewer", "Reviews custody, private ownership evidence and handover.")
+        ConnectedNotice("Technical admin", "Manages category policy, account roles and audit metadata.")
+        OutlinedTextField(email, { email = it.trim() }, label = { Text("Exact Strathmore email") },
+            singleLine = true, modifier = Modifier.fillMaxWidth())
+        Button(enabled = !busy && email.endsWith("@strathmore.edu", ignoreCase = true),
+            onClick = { onFind(email) }, colors = ButtonDefaults.buttonColors(containerColor = blue)) {
+            Text("Find account")
+        }
+        if (account != null) {
+            val currentRole = account.optString("role", "student")
+            ConnectedNotice(account.optString("email"), "Current role: ${currentRole.replace('_', ' ')}")
+            if (account.optString("uid") == selfUid) {
+                Text("You cannot change your own role.", color = muted, fontSize = 12.sp)
+            } else if (account.optBoolean("email_verified")) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf("student", "office_staff", "admin").forEach { role ->
+                        OutlinedButton(enabled = !busy && role != currentRole,
+                            onClick = { pendingRole = role }, contentPadding = PaddingValues(horizontal = 10.dp)) {
+                            Text(when (role) { "office_staff" -> "Office"; "admin" -> "Admin"; else -> "Student" },
+                                fontSize = 12.sp)
+                        }
+                    }
+                }
+                Text("Role changes take effect when that person refreshes their sign-in token.",
+                    color = muted, fontSize = 12.sp)
+            }
+        }
+    } else {
+        if (!online) ConnectedNotice("Audit unavailable", "Connect to the admin service to load recent events.")
+        else if (events.isEmpty()) ConnectedNotice("No audit events", "Recorded claim decisions and policy changes will appear here.")
+        events.forEach { event -> ConnectedNotice(event.optString("action").replace('_', ' '),
+            listOf(event.optString("category_id"), event.optString("target_uid"), event.optString("new_role"),
+                event.optString("actor_uid"), event.optString("at"))
+                .filter { it.isNotBlank() }.joinToString(" · ")) }
+        if (online && events.isNotEmpty()) {
+            ConnectedNotice("Local export", "Save a CSV to this device's Downloads folder. It contains action, category and time only.")
+            OutlinedButton(enabled = !busy && android.os.Build.VERSION.SDK_INT >= 29, onClick = onExport,
+                modifier = Modifier.fillMaxWidth()) { Text("Save redacted CSV") }
+            if (android.os.Build.VERSION.SDK_INT < 29)
+                Text("Downloads export requires Android 10 or newer.", color = muted, fontSize = 12.sp)
+        }
     }
 }

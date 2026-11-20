@@ -33,6 +33,7 @@ import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.UUID
+import java.net.URLEncoder
 
 private fun JSONObject.rows(key: String): List<JSONObject> {
     val array = optJSONArray(key) ?: JSONArray()
@@ -83,7 +84,9 @@ fun ConnectedApp(incomingLink: String? = null, onLinkConsumed: () -> Unit = {}) 
     var notifications by remember { mutableStateOf(emptyList<JSONObject>()) }
     var categoryRules by remember { mutableStateOf(emptyList<JSONObject>()) }
     var auditEvents by remember { mutableStateOf(emptyList<JSONObject>()) }
+    var adminAccount by remember { mutableStateOf<JSONObject?>(null) }
     var adminOnline by remember { mutableStateOf(false) }
+    var adminRefreshKey by remember { mutableIntStateOf(0) }
     var unclaimedItems by remember { mutableStateOf(emptyList<JSONObject>()) }
     var retentionPolicyCount by remember { mutableIntStateOf(0) }
     var unclaimedOnline by remember { mutableStateOf(false) }
@@ -128,11 +131,11 @@ fun ConnectedApp(incomingLink: String? = null, onLinkConsumed: () -> Unit = {}) 
         notifications = repository.request("GET", "/v1/notifications").rows("notifications")
         backendOnline = true
     }
-    LaunchedEffect(page, identity?.optString("role")) {
-        if (identity?.optString("role") == "admin" && page in setOf("Admin", "Rules", "Audit")) {
+    LaunchedEffect(page, identity?.optString("role"), adminRefreshKey) {
+        if (identity?.optString("role") == "admin" && page in setOf("Rules", "Audit")) {
             runCatching {
-                categoryRules = repository.request("GET", "/v1/admin/category-rules").rows("rules")
-                auditEvents = repository.request("GET", "/v1/admin/audit").rows("events")
+                if (page == "Rules") categoryRules = repository.request("GET", "/v1/admin/category-rules").rows("rules")
+                if (page == "Audit") auditEvents = repository.request("GET", "/v1/admin/audit").rows("events")
                 adminOnline = true
             }.onFailure { adminOnline = false }
         }
@@ -295,6 +298,8 @@ fun ConnectedApp(incomingLink: String? = null, onLinkConsumed: () -> Unit = {}) 
             val staff = role == "office_staff"
             if (page in setOf("Reports", "Matches", "Alerts", "Claims", "Inventory", "Office"))
                 TextButton(enabled = !busy, onClick = { run { refresh() } }) { Text("Refresh updates") }
+            if (role == "admin" && page in setOf("Rules", "Audit"))
+                TextButton(enabled = !busy, onClick = { adminRefreshKey++ }) { Text("Refresh admin data") }
             when (page) {
                 "Office" -> OfficeDashboard(reports, claims, backendOnline,
                     onCheckIn = { page = "NewFound" }, onInventory = { page = "Inventory" },
@@ -306,10 +311,30 @@ fun ConnectedApp(incomingLink: String? = null, onLinkConsumed: () -> Unit = {}) 
                         repository.request("PUT", "/v1/admin/category-rules/$id", JSONObject()
                             .put("retention_days", days).put("restricted", restricted).put("requires_seal", sealed))
                         categoryRules = repository.request("GET", "/v1/admin/category-rules").rows("rules")
+                        messageIsSuccess = true
                         message = "Rule saved."
                     }
                 }
-                "Audit" -> AdminAudit(auditEvents, adminOnline) {
+                "Audit" -> AdminAudit(auditEvents, adminOnline, adminAccount, identity!!.optString("uid"), busy,
+                    onFind = { address -> run {
+                        adminAccount = null
+                        val encoded = URLEncoder.encode(address.trim().lowercase(), "UTF-8")
+                        try {
+                            adminAccount = repository.request("GET", "/v1/admin/accounts?email=$encoded").getJSONObject("account")
+                        } catch (error: Exception) {
+                            message = if (error.message?.contains("Account not found") == true)
+                                "No account yet. This person must sign in once before you can assign a role."
+                            else "Could not find the account. Check your connection and try again."
+                        }
+                    } },
+                    onRole = { uid, role -> run {
+                        adminAccount = repository.request("PUT", "/v1/admin/accounts/$uid/role",
+                            JSONObject().put("role", role)).getJSONObject("account")
+                        runCatching { auditEvents = repository.request("GET", "/v1/admin/audit").rows("events") }
+                        messageIsSuccess = true
+                        message = "Role saved. Ask the person to sign in again."
+                    } },
+                    onExport = {
                     val rows = auditEvents.map { event ->
                         RedactedAuditRow(event.optString("action"), event.optString("category_id"), event.optString("at"))
                     }
@@ -326,7 +351,7 @@ fun ConnectedApp(incomingLink: String? = null, onLinkConsumed: () -> Unit = {}) 
                             message = "Could not save the CSV. Please try again."
                         }
                     }
-                }
+                })
                 "Inventory" -> {
                     Text("Inventory", color = Color(0xFF112B4B), fontSize = 22.sp, fontWeight = FontWeight.Bold)
                     if (!backendOnline) ConnectedNotice("Inventory unavailable", "Connect to the office service to review items in custody.")
