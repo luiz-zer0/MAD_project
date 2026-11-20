@@ -40,6 +40,12 @@ private fun JSONObject.rows(key: String): List<JSONObject> {
     return (0 until array.length()).map { array.getJSONObject(it) }
 }
 
+private fun savedReportDrafts(preferences: android.content.SharedPreferences): List<Pair<String, JSONObject>> =
+    preferences.all.mapNotNull { (key, value) ->
+        if (key != "draft" && !key.startsWith("draft_")) return@mapNotNull null
+        runCatching { key to JSONObject(value as String) }.getOrNull()
+    }.sortedByDescending { it.second.optLong("updated_at") }
+
 private fun signInError(error: Exception): String = when {
     error is FirebaseNetworkException || error is java.net.UnknownHostException ->
         "You’re offline. Reconnect and try again."
@@ -96,6 +102,8 @@ fun ConnectedApp(incomingLink: String? = null, onLinkConsumed: () -> Unit = {}) 
     var selectedClaim by remember { mutableStateOf<JSONObject?>(null) }
     var receipt by remember { mutableStateOf<JSONObject?>(null) }
     var reportsTab by rememberSaveable { mutableStateOf("Active") }
+    var draftToOpen by rememberSaveable { mutableStateOf<String?>(null) }
+    var reportFormNonce by rememberSaveable { mutableIntStateOf(0) }
     var pendingDecision by remember { mutableStateOf<Pair<String, String>?>(null) }
     var photoBytes by remember { mutableStateOf<ByteArray?>(null) }
     val notificationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
@@ -282,8 +290,8 @@ fun ConnectedApp(incomingLink: String? = null, onLinkConsumed: () -> Unit = {}) 
             ConnectedHomeScreen(
                 email = repository.auth.currentUser?.email.orEmpty(), role = role,
                 reports = reports, backendOnline = backendOnline,
-                onLost = { page = "New" },
-                onFound = { page = if (role == "student") "FoundHelp" else "NewFound" },
+                onLost = { draftToOpen = null; reportFormNonce++; page = "New" },
+                onFound = { draftToOpen = null; reportFormNonce++; page = if (role == "student") "FoundHelp" else "NewFound" },
                 onReports = { page = "Reports" }, onMatches = { page = "Matches" },
                 onProfile = { page = "Profile" }, modifier = Modifier.weight(1f))
         } else {
@@ -302,7 +310,7 @@ fun ConnectedApp(incomingLink: String? = null, onLinkConsumed: () -> Unit = {}) 
                 TextButton(enabled = !busy, onClick = { adminRefreshKey++ }) { Text("Refresh admin data") }
             when (page) {
                 "Office" -> OfficeDashboard(reports, claims, backendOnline,
-                    onCheckIn = { page = "NewFound" }, onInventory = { page = "Inventory" },
+                    onCheckIn = { draftToOpen = null; reportFormNonce++; page = "NewFound" }, onInventory = { page = "Inventory" },
                     onClaims = { page = "Claims" }, onUnclaimed = { page = "Unclaimed" })
                 "Unclaimed" -> OfficeUnclaimed(unclaimedItems, unclaimedOnline, retentionPolicyCount)
                 "Admin" -> AdminOverview(onRules = { page = "Rules" }, onAudit = { page = "Audit" })
@@ -352,7 +360,9 @@ fun ConnectedApp(incomingLink: String? = null, onLinkConsumed: () -> Unit = {}) 
                         }
                     }
                 })
-                "Inventory" -> OfficeInventory(reports, backendOnline) { page = "NewFound" }
+                "Inventory" -> OfficeInventory(reports, backendOnline) {
+                    draftToOpen = null; reportFormNonce++; page = "NewFound"
+                }
                 "Candidate" -> ConnectedCandidateScreen(candidate, busy,
                     onBack = { page = "Reports" }, onClaim = { proof ->
                         val matchId = selectedMatch?.optString("id").orEmpty()
@@ -379,9 +389,12 @@ fun ConnectedApp(incomingLink: String? = null, onLinkConsumed: () -> Unit = {}) 
                         reports = emptyList(); matches = emptyList(); claims = emptyList(); notifications = emptyList()
                     }) { Text("Sign out") }
                 }
-                "New", "NewFound" -> key(identity!!.getString("uid"), page) {
+                "New", "NewFound" -> key(identity!!.getString("uid"), page, draftToOpen, reportFormNonce) {
                     ConnectedReportForm(repository, staff, busy, { action -> run(action) },
-                        initialFound = page == "NewFound") {
+                        initialFound = page == "NewFound", draftKey = draftToOpen,
+                        onStartAnother = {
+                            draftToOpen = null; reportFormNonce++
+                        }) {
                         message = "Report saved: $it. Matching will run separately."
                         page = if (staff) "Inventory" else "Reports"
                         refresh()
@@ -421,12 +434,26 @@ fun ConnectedApp(incomingLink: String? = null, onLinkConsumed: () -> Unit = {}) 
                         ConnectedNotice(if (reportsTab == "Active") "No active reports" else "No resolved reports", "Submitted reports will appear here.")
                     if (reportsTab == "Unfinished") {
                         val draft = context.getSharedPreferences("connected_draft_${identity!!.getString("uid")}", android.content.Context.MODE_PRIVATE)
-                        if (draft.contains("draft")) {
-                            ConnectedNotice("Draft on this device", "Continue editing your report before submitting it.")
-                            Button(onClick = { page = "New" }) { Text("Continue draft") }
-                        } else ConnectedNotice("No unfinished reports", "A report draft appears here while you prepare it.")
+                        val entries = savedReportDrafts(draft)
+                        if (entries.isEmpty()) ConnectedNotice("No unfinished reports", "Reports you start and save on this device will appear here.")
+                        entries.forEach { (draftKey, details) ->
+                            Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White)) {
+                                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Text(details.optString("title").ifBlank { "Untitled report" },
+                                        color = Color(0xFF112B4B), fontWeight = FontWeight.SemiBold)
+                                    Text(if (details.optBoolean("attempted")) "Submission not confirmed · review or retry"
+                                         else "Draft saved on this device", color = Color(0xFF697586), fontSize = 12.sp)
+                                    TextButton(onClick = {
+                                        draftToOpen = draftKey; reportFormNonce++
+                                        page = if (details.optBoolean("found")) "NewFound" else "New"
+                                    }) { Text("Open draft") }
+                                }
+                            }
+                        }
                     }
-                    if (reportsTab != "Unfinished") Button(onClick = { page = "New" }) { Text("Report a lost item") }
+                    Button(onClick = { draftToOpen = null; reportFormNonce++; page = "New" }) {
+                        Text("Report a lost item")
+                    }
                     if (reportsTab != "Unfinished") visibleReports.forEach { row ->
                         Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp),
                             colors = CardDefaults.cardColors(containerColor = Color.White)) {
@@ -535,12 +562,16 @@ fun ConnectedApp(incomingLink: String? = null, onLinkConsumed: () -> Unit = {}) 
 @Composable
 private fun ConnectedReportForm(repository: FirebaseRepository, staff: Boolean, busy: Boolean,
     run: (suspend () -> Unit) -> Unit, initialFound: Boolean = false,
+    draftKey: String? = null, onStartAnother: () -> Unit,
     onSaved: suspend (String) -> Unit) {
     val context = LocalContext.current
     val uid = repository.auth.currentUser!!.uid
     val preferences = remember(uid) { context.getSharedPreferences("connected_draft_$uid", android.content.Context.MODE_PRIVATE) }
-    val saved = remember(uid) { runCatching { JSONObject(preferences.getString("draft", "{}")!!) }.getOrDefault(JSONObject()) }
+    val saved = remember(uid, draftKey) {
+        runCatching { JSONObject(draftKey?.let { preferences.getString(it, "{}") } ?: "{}") }.getOrDefault(JSONObject())
+    }
     var requestId by rememberSaveable { mutableStateOf(saved.optString("request_id", UUID.randomUUID().toString())) }
+    var storageKey by rememberSaveable { mutableStateOf(draftKey ?: "draft_$requestId") }
     var found by rememberSaveable(initialFound) { mutableStateOf(initialFound || saved.optBoolean("found")) }
     var title by rememberSaveable { mutableStateOf(saved.optString("title")) }
     var description by rememberSaveable { mutableStateOf(saved.optString("description")) }
@@ -564,9 +595,11 @@ private fun ConnectedReportForm(repository: FirebaseRepository, staff: Boolean, 
             .put("brand", brand).put("colour", colour).put("model", model).put("material", material)
             .put("photo", photo).put("private_feature", privateFeature).put("custody_location", custodyLocation)
             .put("sealed", sealed).put("attempted", attempted)
-        preferences.edit().putString("draft", draft.toString()).apply()
+            .put("updated_at", System.currentTimeMillis())
+        preferences.edit().putString(storageKey, draft.toString()).apply()
     }
-    SideEffect { if (!completed) persistDraft() }
+    SideEffect { if (!completed && (title.isNotBlank() || description.isNotBlank() || category.isNotBlank()
+            || location.isNotBlank() || attempted)) persistDraft() }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
             context.contentResolver.takePersistableUriPermission(uri, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
@@ -578,7 +611,18 @@ private fun ConnectedReportForm(repository: FirebaseRepository, staff: Boolean, 
     Text(if (formStep == 1) "STEP 1 OF 2 · ITEM DETAILS" else "STEP 2 OF 2 · PRIVATE DETAILS",
         color = Color(0xFF245ECA), fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
     LinearProgressIndicator(progress = { if (formStep == 1) 0.5f else 1f }, modifier = Modifier.fillMaxWidth())
-    Text("Draft saved on this device until the service confirms submission.", color = Color(0xFF697586), fontSize = 12.sp)
+    Text("Your progress is saved on this device.", color = Color(0xFF697586), fontSize = 12.sp)
+    if (attempted) ConnectedNotice("Submission not confirmed",
+        "Retry this report unchanged, or edit a copy with a new request ID. Check My reports before submitting a copy to avoid duplicates.")
+    if (attempted) TextButton(enabled = !busy, onClick = {
+        requestId = UUID.randomUUID().toString()
+        storageKey = "draft_$requestId"
+        attempted = false
+        formStep = 1
+    }) { Text("Edit a copy as a new report") }
+    OutlinedButton(enabled = !busy, onClick = onStartAnother, modifier = Modifier.fillMaxWidth()) {
+        Text("Start another report")
+    }
     if (staff && formStep == 1) Row { Checkbox(found, { if (!attempted) found = it }, enabled = !busy && !attempted); Text("Record found item in office custody") }
     val editable = !busy && !attempted
     if (formStep == 1) {
@@ -591,8 +635,10 @@ private fun ConnectedReportForm(repository: FirebaseRepository, staff: Boolean, 
         CampusLocationPicker(location, { location = it })
         ReportDatePicker(date, { date = it })
     } else Text("$category Â· $location Â· $date")
-    Button(enabled = editable && title.isNotBlank() && description.length >= 3 && category.isNotBlank() && location.isNotBlank() && validReportDate(date),
-        onClick = { formStep = 2 }, modifier = Modifier.fillMaxWidth()) { Text("Continue to category details") }
+    Button(enabled = !busy && title.isNotBlank() && description.length >= 3 && category.isNotBlank() && location.isNotBlank() && validReportDate(date),
+        onClick = { formStep = 2 }, modifier = Modifier.fillMaxWidth()) {
+        Text(if (attempted) "Review and retry submission" else "Continue to category details")
+    }
     } else {
     ConnectedNotice("${category.replace('_', ' ').replaceFirstChar { it.uppercase() }} selected",
         if (found) "Record custody carefully. Private details stay with office staff." else "Add a detail that may help the office verify your report.")
@@ -633,14 +679,11 @@ private fun ConnectedReportForm(repository: FirebaseRepository, staff: Boolean, 
                 .put("sealed", sealed).put("custody_location", custodyLocation)
             val saved = repository.request("POST", "/v1/reports", payload)
             completed = true
-            preferences.edit().remove("draft").apply()
+            preferences.edit().remove(storageKey).apply()
             onSaved(saved.getString("id"))
         }
     }) { Text(if (attempted) "Retry same submission" else "Submit report") }
     if (attempted) Text("If connection failed, retry uses the same request ID to avoid duplicates. Check Reports before starting a different submission.")
-    if (attempted) TextButton(enabled = !busy, onClick = { requestId = UUID.randomUUID().toString(); attempted = false }) {
-        Text("Edit as a new submission")
-    }
     TextButton(onClick = { formStep = 1 }) { Text("Back to item details") }
     }
 }
