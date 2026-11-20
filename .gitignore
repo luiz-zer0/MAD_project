@@ -5,3 +5,5 @@ app/google-services.json
 build/
 app/build/
 local.properties
+.idea/
+hs_err_pid*.log
