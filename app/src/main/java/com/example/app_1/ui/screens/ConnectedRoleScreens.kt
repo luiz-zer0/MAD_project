@@ -91,6 +91,103 @@ internal fun OfficeUnclaimed(items: List<JSONObject>, online: Boolean, policyCou
 }
 
 @Composable
+internal fun OfficeInventory(reports: List<JSONObject>, online: Boolean, onCheckIn: () -> Unit) {
+    var selectedFilter by remember { mutableStateOf("In custody") }
+    var expandedId by remember { mutableStateOf<String?>(null) }
+    Text("Inventory", color = navy, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+    Text("Items checked in by the Lost & Found Office", color = muted, fontSize = 13.sp)
+    Button(onClick = onCheckIn, colors = ButtonDefaults.buttonColors(containerColor = blue),
+        modifier = Modifier.fillMaxWidth()) { Text("Check in a found item") }
+    if (!online) {
+        ConnectedNotice("Inventory unavailable", "Connect to the office service to review items in custody.")
+        return
+    }
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        listOf("In custody", "Closed").forEach { filter ->
+            FilterChip(selected = selectedFilter == filter, onClick = { selectedFilter = filter },
+                label = { Text(filter) })
+        }
+    }
+    val visible = reports.filter { it.optString("report_type") == "found" &&
+        (if (selectedFilter == "In custody") it.optString("status") == "active"
+         else it.optString("status") != "active") }
+    if (visible.isEmpty()) ConnectedNotice("No ${selectedFilter.lowercase()} items",
+        if (selectedFilter == "In custody") "Check in a found item to add it to inventory."
+        else "Completed handovers will appear here.")
+    visible.forEach { item ->
+        val id = item.optString("id")
+        Card(onClick = { expandedId = if (expandedId == id) null else id },
+            modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            border = BorderStroke(1.dp, Color(0xFFDEE3E9))) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(item.optString("item_name", "Found item"), color = navy, fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold)
+                Text("${item.optString("category_id").replace('_', ' ')} · ${item.optString("location_id").replace('_', ' ')}",
+                    color = muted, fontSize = 12.sp)
+                Text(if (expandedId == id) "Hide custody details" else "View custody details",
+                    color = blue, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                if (expandedId == id) {
+                    HorizontalDivider(color = Color(0xFFDEE3E9))
+                    Text(item.optString("description"), color = navy, fontSize = 13.sp)
+                    if (item.optString("custody_location").isNotBlank())
+                        Text("Secure location: ${item.optString("custody_location")}", color = navy, fontSize = 12.sp)
+                    if (item.optBoolean("sealed"))
+                        Text("Sealed on receipt", color = Color(0xFF28775C), fontSize = 12.sp)
+                    Text("Status: ${item.optString("status")}", color = muted, fontSize = 12.sp)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+internal fun OfficeClaimsQueue(claims: List<JSONObject>, reports: List<JSONObject>, online: Boolean,
+                               busy: Boolean, onOpen: (JSONObject) -> Unit) {
+    var selectedFilter by remember { mutableStateOf("Pending") }
+    Text("Claims queue", color = navy, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+    ConnectedNotice("Ownership review", "Compare private details with the physical item and claimant before approving. Record collection only after handover.")
+    if (!online) {
+        ConnectedNotice("Claims unavailable", "Connect to the office service to review ownership requests.")
+        return
+    }
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        listOf("Pending", "Approved", "Closed").forEach { filter ->
+            FilterChip(selected = selectedFilter == filter, onClick = { selectedFilter = filter },
+                label = { Text(filter) })
+        }
+    }
+    val visible = claims.filter { claim -> when (selectedFilter) {
+        "Pending" -> claim.optString("status") == "pending"
+        "Approved" -> claim.optString("status") == "approved"
+        else -> claim.optString("status") in listOf("collected", "rejected")
+    } }
+    if (visible.isEmpty()) ConnectedNotice("No ${selectedFilter.lowercase()} claims",
+        "Ownership requests will appear here when they reach this stage.")
+    visible.forEach { claim ->
+        val found = reports.firstOrNull { it.optString("id") == claim.optString("found_id") }
+        Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            border = BorderStroke(1.dp, Color(0xFFDEE3E9))) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                Text(found?.optString("item_name")?.ifBlank { "Found item" } ?: "Found item",
+                    color = navy, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                Text("${claim.optString("status").replaceFirstChar { it.uppercase() }} · ${found?.optString("category_id")?.replace('_', ' ') ?: "Office inventory"}",
+                    color = muted, fontSize = 12.sp)
+                Text(when (claim.optString("status")) {
+                    "pending" -> "Private ownership answer is ready for office review."
+                    "approved" -> "Verify the claimant in person before handover."
+                    else -> "Decision and handover history are recorded."
+                }, color = muted, fontSize = 12.sp)
+                OutlinedButton(enabled = !busy, onClick = { onOpen(claim) }) {
+                    Text(if (claim.optString("status") == "pending") "Review evidence" else "View claim")
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun OfficeCount(label: String, count: Int, modifier: Modifier) {
     Card(modifier, colors = CardDefaults.cardColors(containerColor = Color.White),
         border = BorderStroke(1.dp, Color(0xFFDEE3E9))) {

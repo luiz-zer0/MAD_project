@@ -352,17 +352,7 @@ fun ConnectedApp(incomingLink: String? = null, onLinkConsumed: () -> Unit = {}) 
                         }
                     }
                 })
-                "Inventory" -> {
-                    Text("Inventory", color = Color(0xFF112B4B), fontSize = 22.sp, fontWeight = FontWeight.Bold)
-                    if (!backendOnline) ConnectedNotice("Inventory unavailable", "Connect to the office service to review items in custody.")
-                    else {
-                        val foundItems = reports.filter { it.optString("report_type") == "found" }
-                        if (foundItems.isEmpty()) ConnectedNotice("No items in custody yet", "Check in a found item to start the inventory.")
-                        foundItems.forEach { row -> ConnectedNotice(row.optString("item_name"),
-                            "${row.optString("status")} · ${row.optString("category_id")} · ${row.optString("location_id")}") }
-                    }
-                    Button(onClick = { page = "NewFound" }) { Text("Check in a found item") }
-                }
+                "Inventory" -> OfficeInventory(reports, backendOnline) { page = "NewFound" }
                 "Candidate" -> ConnectedCandidateScreen(candidate, busy,
                     onBack = { page = "Reports" }, onClaim = { proof ->
                         val matchId = selectedMatch?.optString("id").orEmpty()
@@ -497,27 +487,11 @@ fun ConnectedApp(incomingLink: String? = null, onLinkConsumed: () -> Unit = {}) 
                         }
                     }
                 }
-                "Claims" -> {
-                    ConnectedNotice("Ownership review", "Verify evidence in person before approving. Record collection after physical handover.")
-                    if (!backendOnline) ConnectedNotice("Claims unavailable", "Connect to the office service to review claims.")
-                    else if (claims.isEmpty()) ConnectedNotice("No claims to review", "New ownership requests will appear here.")
-                    claims.forEach { claim ->
-                        Card(Modifier.fillMaxWidth()) {
-                            Column(Modifier.padding(12.dp)) {
-                                Text("Claim ${claim.getString("id").take(12)} Â· ${claim.getString("status")}")
-                                Text("Lost report: ${claim.getString("lost_id")}")
-                                Text("Found report: ${claim.getString("found_id")}")
-                                if (staff) {
-                                    TextButton(enabled = !busy, onClick = {
-                                        selectedClaim = claim; receipt = null
-                                        page = if (claim.optString("status") == "pending") "Verification" else "Handover"
-                                        if (claim.optString("status") == "collected") run {
-                                            receipt = repository.request("GET", "/v1/claims/${claim.getString("id")}/receipt")
-                                        }
-                                    }) { Text(if (claim.optString("status") == "pending") "Review evidence" else "View handover") }
-                                }
-                            }
-                        }
+                "Claims" -> OfficeClaimsQueue(claims, reports, backendOnline, busy) { claim ->
+                    selectedClaim = claim; receipt = null
+                    page = if (claim.optString("status") == "pending") "Verification" else "Handover"
+                    if (claim.optString("status") == "collected") run {
+                        receipt = repository.request("GET", "/v1/claims/${claim.getString("id")}/receipt")
                     }
                 }
                 "Alerts" -> {

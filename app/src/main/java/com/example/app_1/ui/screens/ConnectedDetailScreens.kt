@@ -69,9 +69,19 @@ internal fun ConnectedVerificationScreen(claim: JSONObject, busy: Boolean, onBac
 @Composable
 internal fun ConnectedHandoverScreen(claim: JSONObject, receipt: JSONObject?, busy: Boolean,
     onBack: () -> Unit, onCollect: () -> Unit) {
-    Text("Pickup & recorded handover", color = ink, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-    ConnectedNotice("Approved claim", "Claim ${claim.optString("id").take(12)} is ready for pickup. Verify the person and item at the office before completing the handover.")
-    if (claim.optString("status") == "approved") {
+    val status = claim.optString("status")
+    Text(if (status == "rejected") "Claim decision" else "Pickup & recorded handover",
+        color = ink, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+    ConnectedNotice(when (status) {
+        "rejected" -> "Claim rejected"
+        "collected" -> "Handover recorded"
+        else -> "Approved claim"
+    }, when (status) {
+        "rejected" -> "This claim was rejected after office review. The item remains in custody."
+        "collected" -> "This item was handed over and the collection was recorded."
+        else -> "Claim ${claim.optString("id").take(12)} is ready for pickup. Verify the person and item at the office before completing the handover."
+    })
+    if (status == "approved") {
         Button(enabled = !busy, onClick = onCollect, modifier = Modifier.fillMaxWidth(),
             colors = ButtonDefaults.buttonColors(containerColor = actionBlue)) { Text("Record physical handover") }
     }
