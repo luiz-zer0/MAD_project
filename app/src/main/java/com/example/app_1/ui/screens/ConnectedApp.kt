@@ -613,7 +613,9 @@ private fun ConnectedReportForm(repository: FirebaseRepository, staff: Boolean, 
             Text("Item sealed and recorded", color = Color(0xFF112B4B))
         }
     }
-    ConnectedNotice("Photo uploads unavailable", "This Firebase project needs a Storage billing upgrade. You can submit the report without a photo.")
+    if (staff) {
+        ConnectedNotice("Photo uploads unavailable", "This Firebase project needs a Storage billing upgrade. You can submit the report without a photo.")
+    }
     if (photo.isNotBlank()) {
         Text("A photo is saved in this draft but cannot be uploaded yet. Remove it to submit this report without a photo.", color = Color(0xFF697586), fontSize = 12.sp)
         TextButton(enabled = editable, onClick = { photo = "" }) { Text("Remove saved photo") }
