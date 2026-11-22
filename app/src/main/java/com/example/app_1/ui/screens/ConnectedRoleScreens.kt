@@ -152,9 +152,96 @@ internal fun AdminRules(rules: List<JSONObject>, online: Boolean, onSave: (Strin
 }
 
 @Composable
-internal fun AdminAudit(events: List<JSONObject>, online: Boolean, onExport: () -> Unit) {
+internal fun OfficeInventory(reports: List<JSONObject>, online: Boolean, onCheckIn: () -> Unit) {
+    Text("Office inventory", color = navy, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+    ConnectedNotice("Custody inventory", "All active found items recorded by the office.")
+    if (!online) ConnectedNotice("Inventory unavailable", "Connect to the office service to load inventory.")
+    else {
+        val foundReports = reports.filter { it.optString("report_type") == "found" }
+        if (foundReports.isEmpty()) ConnectedNotice("No items in custody", "Checked-in found items will appear here.")
+        Button(onClick = onCheckIn, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = blue)) {
+            Text("Check in a found item")
+        }
+        foundReports.forEach { row ->
+            Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White)) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(row.optString("item_name"), color = navy, fontWeight = FontWeight.SemiBold)
+                    Text("${row.optString("category_id")} · ${row.optString("location_id")} · ${row.optString("status")}")
+                    if (row.optString("custody_location").isNotBlank()) {
+                        Text("Custody: ${row.optString("custody_location")}", color = muted, fontSize = 12.sp)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+internal fun OfficeClaimsQueue(claims: List<JSONObject>, reports: List<JSONObject>, online: Boolean, busy: Boolean, onSelect: (JSONObject) -> Unit) {
+    Text("Claims queue", color = navy, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+    ConnectedNotice("Ownership review", "Review in-person proof before approving or rejecting ownership claims.")
+    if (!online) ConnectedNotice("Claims unavailable", "Connect to the office service to load claims.")
+    else if (claims.isEmpty()) ConnectedNotice("No claims yet", "Submitted ownership claims will appear here.")
+    claims.forEach { claim ->
+        val lostReport = reports.firstOrNull { it.optString("id") == claim.optString("lost_id") }
+        Card(onClick = { onSelect(claim) }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White)) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text("Claim for ${lostReport?.optString("item_name") ?: "Item"} · ${claim.optString("status")}",
+                    color = navy, fontWeight = FontWeight.SemiBold)
+                Text("Claimant: ${claim.optString("claimant_email").ifBlank { claim.optString("claimant_uid") }}",
+                    color = muted, fontSize = 12.sp)
+                Text("Tap to review proof and update status", color = blue, fontSize = 12.sp)
+            }
+        }
+    }
+}
+
+@Composable
+internal fun AdminAudit(
+    events: List<JSONObject>,
+    online: Boolean,
+    account: JSONObject?,
+    myUid: String,
+    busy: Boolean,
+    onFind: (String) -> Unit,
+    onRole: (String, String) -> Unit,
+    onExport: () -> Unit
+) {
+    var emailInput by remember { mutableStateOf("") }
     Text("Access & audit", color = navy, fontSize = 22.sp, fontWeight = FontWeight.Bold)
     ConnectedNotice("Access boundary", "Students see their own reports and claims. Office staff review custody and ownership. Technical admins do not receive private claim evidence.")
+
+    Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp), colors = CardDefaults.cardColors(containerColor = Color.White)) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text("Assign staff or admin role", color = navy, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+            OutlinedTextField(emailInput, { emailInput = it }, label = { Text("University email") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            Button(enabled = !busy && emailInput.isNotBlank(), onClick = { onFind(emailInput) },
+                colors = ButtonDefaults.buttonColors(containerColor = blue)) { Text("Find account") }
+            account?.let { acc ->
+                val uid = acc.optString("uid")
+                val currentRole = acc.optString("role", "student")
+                Text("Found: ${acc.optString("email")} (Current role: $currentRole)", color = navy, fontSize = 13.sp)
+                if (uid == myUid) {
+                    Text("You cannot change your own role here.", color = muted, fontSize = 12.sp)
+                } else {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        if (currentRole != "office_staff") {
+                            Button(enabled = !busy, onClick = { onRole(uid, "office_staff") }) { Text("Make office staff") }
+                        }
+                        if (currentRole != "admin") {
+                            Button(enabled = !busy, onClick = { onRole(uid, "admin") }) { Text("Make admin") }
+                        }
+                        if (currentRole != "student") {
+                            Button(enabled = !busy, onClick = { onRole(uid, "student") }) { Text("Make student") }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     if (!online) ConnectedNotice("Audit unavailable", "Connect to the admin service to load recent events.")
     else if (events.isEmpty()) ConnectedNotice("No audit events", "Recorded claim decisions and policy changes will appear here.")
     events.forEach { event -> ConnectedNotice(event.optString("action").replace('_', ' '),

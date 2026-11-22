@@ -20,13 +20,12 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.app_1.BuildConfig
 import com.example.app_1.R
 import com.example.app_1.data.FirebaseRepository
-import com.google.firebase.FirebaseNetworkException
-import com.google.firebase.auth.FirebaseAuthException
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -34,6 +33,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.util.UUID
 import java.net.URLEncoder
+import java.util.Locale
 
 private fun JSONObject.rows(key: String): List<JSONObject> {
     val array = optJSONArray(key) ?: JSONArray()
@@ -46,18 +46,6 @@ private fun savedReportDrafts(preferences: android.content.SharedPreferences): L
         runCatching { key to JSONObject(value as String) }.getOrNull()
     }.sortedByDescending { it.second.optLong("updated_at") }
 
-private fun signInError(error: Exception): String = when {
-    error is FirebaseNetworkException || error is java.net.UnknownHostException ->
-        "You’re offline. Reconnect and try again."
-    else -> when ((error as? FirebaseAuthException)?.errorCode) {
-    "ERROR_INVALID_EMAIL" -> "Check your email address and try again."
-    "ERROR_TOO_MANY_REQUESTS" -> "Too many attempts. Please wait a moment and try again."
-    "ERROR_EXPIRED_ACTION_CODE", "ERROR_INVALID_ACTION_CODE" -> "This link has expired or was already used. Request a new one."
-    "ERROR_INVALID_CREDENTIAL" -> "This link doesn't match that email. Check the address and try again."
-    "ERROR_OPERATION_NOT_ALLOWED" -> "Email sign-in is unavailable right now. Please try again later."
-    else -> "Something went wrong. Please try again."
-    }
-}
 
 /** Connected workflow. The old sample screens remain available in source, not as authorization. */
 @Composable
@@ -76,6 +64,7 @@ fun ConnectedApp(incomingLink: String? = null, onLinkConsumed: () -> Unit = {}) 
     val scope = rememberCoroutineScope()
     var identity by remember { mutableStateOf<JSONObject?>(null) }
     var email by rememberSaveable { mutableStateOf("") }
+    var demoPassword by rememberSaveable { mutableStateOf("") }
     var pastedLink by rememberSaveable { mutableStateOf("") }
     var showPasteLink by rememberSaveable { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }
@@ -86,6 +75,8 @@ fun ConnectedApp(incomingLink: String? = null, onLinkConsumed: () -> Unit = {}) 
     var backendOnline by remember { mutableStateOf(false) }
     var reports by remember { mutableStateOf(emptyList<JSONObject>()) }
     var matches by remember { mutableStateOf(emptyList<JSONObject>()) }
+    var matchingStatus by remember { mutableStateOf("") }
+    var matchesLoaded by remember { mutableStateOf(false) }
     var claims by remember { mutableStateOf(emptyList<JSONObject>()) }
     var notifications by remember { mutableStateOf(emptyList<JSONObject>()) }
     var categoryRules by remember { mutableStateOf(emptyList<JSONObject>()) }
@@ -138,6 +129,16 @@ fun ConnectedApp(incomingLink: String? = null, onLinkConsumed: () -> Unit = {}) 
         claims = repository.request("GET", "/v1/claims").rows("claims")
         notifications = repository.request("GET", "/v1/notifications").rows("notifications")
         backendOnline = true
+    }
+    suspend fun loadMatches(row: JSONObject) {
+        selected = row
+        matchesLoaded = false
+        matches = emptyList()
+        matchingStatus = ""
+        val response = repository.request("GET", "/v1/reports/${row.getString("report_type")}/${row.getString("id")}/matches")
+        matches = response.rows("matches")
+        matchingStatus = response.optString("matching_status")
+        matchesLoaded = true
     }
     LaunchedEffect(page, identity?.optString("role"), adminRefreshKey) {
         if (identity?.optString("role") == "admin" && page in setOf("Rules", "Audit")) {
@@ -226,6 +227,19 @@ fun ConnectedApp(incomingLink: String? = null, onLinkConsumed: () -> Unit = {}) 
                 Text("University email", color = Color(0xFF102B49), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                 OutlinedTextField(email, { email = it }, placeholder = { Text("name@strathmore.edu") },
                     singleLine = true, shape = RoundedCornerShape(10.dp), modifier = Modifier.fillMaxWidth())
+                if (BuildConfig.USE_FIREBASE_EMULATORS) {
+                    ConnectedNotice("Local demonstration", "Use a fictional account seeded in the Firebase emulator. No live reports are used.")
+                    OutlinedTextField(demoPassword, { demoPassword = it }, label = { Text("Demo password") },
+                        visualTransformation = PasswordVisualTransformation(), singleLine = true,
+                        modifier = Modifier.fillMaxWidth())
+                    Button(enabled = !busy && email.trim().endsWith("@strathmore.edu", ignoreCase = true) && demoPassword.isNotBlank(),
+                        onClick = { run {
+                            repository.signIn(email, demoPassword)
+                            identity = repository.localIdentity()
+                            page = when (identity?.optString("role")) { "office_staff" -> "Office"; "admin" -> "Admin"; else -> "Home" }
+                            refresh()
+                        } }, modifier = Modifier.fillMaxWidth()) { Text("Sign in to local demo") }
+                }
                 Row(Modifier.fillMaxWidth().background(Color(0xFFEDF3FE), RoundedCornerShape(10.dp)).padding(14.dp),
                     horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
                     Icon(painterResource(R.drawable.signin_shield_check), null, tint = Color.Unspecified)
@@ -411,7 +425,7 @@ fun ConnectedApp(incomingLink: String? = null, onLinkConsumed: () -> Unit = {}) 
                     else if (reports.none { it.optString("report_type") == "lost" }) ConnectedNotice("No lost reports yet", "Report something you lost to start looking for possible matches.")
                     else reports.filter { it.optString("report_type") == "lost" }.forEach { row ->
                         Card(onClick = { selected = row; page = "Reports"; run {
-                            matches = repository.request("GET", "/v1/reports/lost/${row.getString("id")}/matches").rows("matches")
+                            loadMatches(row)
                         } }, modifier = Modifier.fillMaxWidth()) {
                             Column(Modifier.padding(16.dp)) {
                                 Text(row.optString("item_name"), color = Color(0xFF112B4B), fontWeight = FontWeight.SemiBold)
@@ -462,8 +476,8 @@ fun ConnectedApp(incomingLink: String? = null, onLinkConsumed: () -> Unit = {}) 
                                 Text("${row.optString("report_type")} Â· ${row.optString("status")} Â· matching ${row.optString("matching_status")}")
                                 Text(row.optString("description"))
                                 TextButton(enabled = !busy, onClick = { run {
-                                    selected = row; photoBytes = null
-                                    matches = repository.request("GET", "/v1/reports/${row.getString("report_type")}/${row.getString("id")}/matches").rows("matches")
+                                    photoBytes = null
+                                    loadMatches(row)
                                 } }) { Text("Review suggestions") }
                                 if (row.optString("photo_reference").isNotBlank()) TextButton(enabled = !busy, onClick = { run {
                                     selected = row; photoBytes = repository.photo(row.getString("photo_reference"))
@@ -498,8 +512,16 @@ fun ConnectedApp(incomingLink: String? = null, onLinkConsumed: () -> Unit = {}) 
                             if (bitmap != null) Image(bitmap.asImageBitmap(), "Report photograph", Modifier.fillMaxWidth().heightIn(max = 280.dp))
                         }
                         Text("Model scores rank suggestions; they do not establish ownership. Office staff verify every claim.")
-                        if (matches.isEmpty()) ConnectedNotice("No matches yet", "Possible matches will appear here when the matching service finds a candidate.")
-                        matches.forEach { match ->
+                        if (!matchesLoaded) ConnectedNotice("Suggestions not loaded", "Tap Review suggestions to load the current matching result.")
+                        else if (matchingStatus in listOf("pending", "running"))
+                            ConnectedNotice("Matching in progress", "The office inventory is being checked. Refresh suggestions shortly.")
+                        else if (matchingStatus == "failed")
+                            ConnectedNotice("Matching could not finish", "Use Run matching again, then refresh suggestions.")
+                        else if (matches.isEmpty())
+                            ConnectedNotice("No text candidates", "No item in the current office inventory shares enough text to be suggested. Staff can search manually; this does not prove the item is absent.")
+                        if (matchesLoaded && matchingStatus in listOf("pending", "running", "complete"))
+                            TextButton(enabled = !busy, onClick = { run { selected?.let { loadMatches(it) } } }) { Text("Refresh suggestions") }
+                        matches.forEachIndexed { index, match ->
                             Card(onClick = { if (match.optString("owner_uid") == identity!!.getString("uid")) run {
                                 selectedMatch = match; candidate = null
                                 candidate = repository.request("GET", "/v1/matches/${match.getString("id")}/candidate").getJSONObject("candidate")
@@ -507,7 +529,13 @@ fun ConnectedApp(incomingLink: String? = null, onLinkConsumed: () -> Unit = {}) 
                             } }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp),
                                 colors = CardDefaults.cardColors(containerColor = Color.White)) {
                                 Column(Modifier.padding(16.dp)) {
-                                    Text("Possible office match", color = Color(0xFF112B4B), fontWeight = FontWeight.SemiBold)
+                                    Text("#${index + 1} ${match.optString("item_name").ifBlank { "Possible office match" }}",
+                                        color = Color(0xFF112B4B), fontWeight = FontWeight.SemiBold)
+                                    val similarity = match.optDouble("score", Double.NaN)
+                                    if (similarity.isFinite()) Text("TF-IDF text similarity: ${String.format(Locale.US, "%.3f", similarity)}",
+                                        color = Color(0xFF697586), fontSize = 12.sp)
+                                    Text(match.optString("explanation").ifBlank { "Staff review is required before any ownership decision." },
+                                        color = Color(0xFF697586), fontSize = 12.sp)
                                     Text("Review general details and provide private proof", color = Color(0xFF697586), fontSize = 12.sp)
                                 }
                             }
