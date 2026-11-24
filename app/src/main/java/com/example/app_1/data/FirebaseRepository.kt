@@ -23,7 +23,7 @@ class FirebaseRepository(context: Context) {
         context, FirebaseOptions.Builder()
             .setProjectId(BuildConfig.FIREBASE_PROJECT_ID)
             .setApplicationId(BuildConfig.FIREBASE_APP_ID)
-            .setGcmSenderId(BuildConfig.FIREBASE_APP_ID.split(":").getOrElse(1) { "" })
+ .setGcmSenderId(BuildConfig.FIREBASE_APP_ID.split(":").getOrElse(1) { "" })
             .setApiKey(BuildConfig.FIREBASE_API_KEY)
             .setStorageBucket(BuildConfig.FIREBASE_STORAGE_BUCKET).build())
     val auth: FirebaseAuth = FirebaseAuth.getInstance(app)
@@ -31,9 +31,9 @@ class FirebaseRepository(context: Context) {
 
     suspend fun sendEmailLink(email: String) {
         val address = email.trim().lowercase()
-        require(address.endsWith("@strathmore.edu")) { "Use your Strathmore email address." }
+ require(address.endsWith("@strathmore.edu")) { "Use your Strathmore email address." }
         val settings = ActionCodeSettings.newBuilder()
-            .setUrl("https://${BuildConfig.FIREBASE_PROJECT_ID}.firebaseapp.com/finishSignIn")
+ .setUrl("https://${BuildConfig.FIREBASE_PROJECT_ID}.firebaseapp.com/finishSignIn")
             .setHandleCodeInApp(true)
             .setAndroidPackageName("com.example.app_1", false, null)
             .build()
@@ -56,8 +56,8 @@ class FirebaseRepository(context: Context) {
     init {
         if (BuildConfig.USE_FIREBASE_EMULATORS) {
             check(BuildConfig.DEBUG && BuildConfig.FIREBASE_PROJECT_ID.startsWith("demo-"))
-            auth.useEmulator("10.0.2.2", 9099)
-            storage.useEmulator("10.0.2.2", 9199)
+            auth.val host = URL(BuildConfig.ML_API_BASE_URL).host         check(host in setOf("10.0.2.2", "127.0.0.1"))         auth.useEmulator(host, 9099)         storage.useEmulator(host, 9199) 9099)
+            storage.val host = URL(BuildConfig.ML_API_BASE_URL).host         check(host in setOf("10.0.2.2", "127.0.0.1"))         auth.useEmulator(host, 9099)         storage.useEmulator(host, 9199) 9199)
         }
     }
 
