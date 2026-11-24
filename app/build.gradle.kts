@@ -15,10 +15,14 @@ val firebaseSettings = Properties().apply {
     if (config.exists()) config.inputStream().use { load(it) }
 }
 val demoFirebase = providers.gradleProperty("demoFirebase").orNull == "true"
-fun firebaseValue(key: String) = "\"" + firebaseSettings.getProperty(key, "").replace("\\", "\\\\").replace("\"", "\\\"") + "\""
+val demoHost = providers.gradleProperty("demoHost").orElse("10.0.2.2").get()
+require(demoHost in setOf("10.0.2.2", "127.0.0.1")) { "Invalid local demo host" }
+
+fun firebaseValue(key: String) = "\"" + firebaseSettings.getProperty(key, "").replace("\"", "\\\"").replace("\"", "\\\"") + "\""
+
 abstract class ValidateReleaseApiConfiguration : DefaultTask() {
     @get:Input
-    abstract val firebaseConfigPath: Property<String>
+    abstract val firebaseConfigPath: Property&lt;String&gt;
 
     @TaskAction
     fun validate() {
@@ -31,8 +35,8 @@ abstract class ValidateReleaseApiConfiguration : DefaultTask() {
         val uri = runCatching { URI(endpoint) }.getOrNull()
         val host = uri?.host?.lowercase().orEmpty()
         require(uri?.scheme == "https" && host.isNotBlank() &&
-            host !in setOf("localhost", "127.0.0.1", "10.0.2.2") &&
-            host != "your-deployed-api.example") {
+                host !in setOf("localhost", "127.0.0.1", "10.0.2.2") &&
+                host != "your-deployed-api.example") {
             "Release builds require ML_API_BASE_URL to be the verified deployed HTTPS API URL in firebase.properties."
         }
         require(settings.getProperty("FIREBASE_PROJECT_ID", "") == "lost-and-found-9671c") {
@@ -40,7 +44,8 @@ abstract class ValidateReleaseApiConfiguration : DefaultTask() {
         }
     }
 }
-val validateReleaseApi = tasks.register<ValidateReleaseApiConfiguration>("validateReleaseApiConfiguration") {
+
+val validateReleaseApi = tasks.register&lt;ValidateReleaseApiConfiguration&gt;("validateReleaseApiConfiguration") {
     firebaseConfigPath.set(rootProject.file("firebase.properties").absolutePath)
 }
 tasks.configureEach {
@@ -75,7 +80,7 @@ android {
                 buildConfigField("String", "FIREBASE_APP_ID", "\"1:123456789:android:localdemo\"")
                 buildConfigField("String", "FIREBASE_API_KEY", "\"demo-api-key-not-a-secret\"")
                 buildConfigField("String", "FIREBASE_STORAGE_BUCKET", "\"demo-strathmore-lost-found.appspot.com\"")
-                buildConfigField("String", "ML_API_BASE_URL", "\"http://10.0.2.2:8000\"")
+                buildConfigField("String", "ML_API_BASE_URL", "\"http://$demoHost:8000\"")
             }
         }
         release {
@@ -100,6 +105,7 @@ dependencies {
     implementation("com.google.firebase:firebase-storage")
     implementation("com.google.firebase:firebase-messaging")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.10.2")
+
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.compose.material3)
@@ -110,11 +116,14 @@ dependencies {
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
+
     testImplementation(libs.junit)
+
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.junit)
+
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     debugImplementation(libs.androidx.compose.ui.tooling)
 }
