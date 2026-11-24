@@ -1,6 +1,6 @@
 # Strathmore Lost and Found AI prototype
 
-The course-named public assessment repository is [SemProject_MLEngine](https://github.com/nimrod-kobia/SemProject_MLEngine). This repository contains the Android client and an older prototype API. The connected client uses the authenticated API and TF-IDF matching worker maintained in `SemProject_MLEngine`; its local emulator walkthrough is in [PRESENTATION_DEMO.md](PRESENTATION_DEMO.md). Use the course-named repository for the lecturer's required submission.
+The course-named public assessment repository is [SemProject_MLEngine](https://github.com/nimrod-kobia/SemProject_MLEngine). This `AI-project` repository also contains the Android starter and prototype API. Both repositories carry the current Delhi notebook workflow; use the course-named repository for the lecturer's required submission.
 
 ## Project objective
 
@@ -18,7 +18,7 @@ The Delhi source contains **13,713 real found-item records**, but no linked lost
 
 ## Existing baseline and datasets
 
-The manually weighted matcher in `matching_system/matcher.py` is retained as the **Rule-Based Baseline** for the older prototype API. The connected Android client does not use that endpoint or the offline Logistic Regression experiment; it submits to the authenticated service in `SemProject_MLEngine`, whose worker uses the shared TF-IDF and knowledge-agent pipeline.
+The manually weighted matcher in `matching_system/matcher.py` is retained as the **Rule-Based Baseline**. It is not trained ML and still powers the small prototype API. The Logistic Regression experiment is offline; the API and Android starter do not use it yet.
 
 `matching_system_testing.ipynb` is a separate engineering notebook. `trial.ipynb` contains earlier exploration and historical outputs; use the CAT 2 notebook for current assessed results.
 
@@ -53,7 +53,7 @@ python -m pytest -q
 uvicorn matching_system.api:app --reload
 ```
 
-`pytest` is needed for the three function-style tests in `tests/test_matching.py`. The legacy FastAPI endpoints use a static synthetic inventory; `POST /reports` does not save reports. Never expose this prototype publicly with sensitive reports. The connected Android app is in `app/`; it uses Firebase Authentication and the authenticated `/v1` API in `SemProject_MLEngine`.
+`pytest` is needed for the three function-style tests in `tests/test_matching.py`. The FastAPI endpoints use a static synthetic inventory; `POST /reports` does not save reports. Never expose this prototype publicly with sensitive reports. The `android/` folder is an app scaffold with no sign-in, reporting flow or API integration.
 
 ## Current status and limitations
 
@@ -61,7 +61,7 @@ uvicorn matching_system.api:app --reload
 
 **Partially implemented:** Delhi pair labels are constructed, not independently verified; the four Delhi EDA figures depend on the separately obtained CSV for reproduction.
 
-**Planned:** real-campus evaluation, image pairs and CLIP features, and production deployment. The Android-to-service emulator baseline is implemented; a current device-to-worker walkthrough and deployed HTTPS service remain unverified.
+**Planned:** real-campus evaluation, image pairs and CLIP features, model comparison, durable backend and Android integration.
 
 The current Delhi-derived held-out check has 108 constructed pairs. Precision is 0.971, recall 0.944 and F1 0.958 in that academic exercise; these are **not** real-world lost-and-found accuracy estimates. The older campus baseline has eight held-out synthetic pairs. See `docs/CAT2_WORKFLOW.md`, `docs/MODEL_EXPLANATION.md`, and `docs/NEXT_STEPS.md` for the presentation guide and next work.
 

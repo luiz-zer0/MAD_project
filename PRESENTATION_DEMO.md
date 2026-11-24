@@ -2,7 +2,7 @@
 
 The connected Android app submits reports to the authenticated API in `SemProject_MLEngine`. The Firestore worker ranks active found reports with TF-IDF retrieval and knowledge agents. Results show ranked possible matches, lexical similarity and an explanation; staff verify ownership before release. The offline version 2 hybrid benchmark is not the deployed model.
 
-Start the Firebase emulators, seed accounts, API and worker with `SemProject_MLEngine/scripts/start_local.ps1` following the current setup in `SemProject_MLEngine/FIREBASE_SETUP.md`. The setup guide is the source of truth for the service, emulator ports and demo accounts. Then build in this repository:
+Start the Firebase emulators, seed accounts, API and worker with `SemProject_MLEngine/scripts/start_local.ps1` as described in that repository's `docs/presentation_runbook_2026-11-23.md`. Then build in this repository:
 
 ```powershell
 .\gradlew.bat -PdemoFirebase=true testDebugUnitTest assembleDebug
