@@ -1,16 +1,19 @@
-# Firebase + Android + existing text classifier
+# Firebase + Android + TF-IDF matching service
 
 This integration uses Firebase Authentication, Cloud Firestore, private Cloud Storage photos,
-one FastAPI service, and a separate worker using the existing scikit-learn feature pipeline.
-There is no CLIP, image inference, or vector database. Existing experiment scripts and results
-are not replaced. Photographs are viewed by their uploader and authorized staff only.
+one authenticated FastAPI service, and a separate worker using the shared TF-IDF retrieval and
+knowledge-agent pipeline from `SemProject_MLEngine`. The earlier Logistic Regression model is
+not loaded by this service. There is no CLIP or image inference. Photos are private; live uploads
+remain unavailable until Storage is enabled for the Firebase project.
 
 Validation on 19 November 2026: the Android debug APK and unit tests passed. The Figma-based
 email-link screen was installed and inspected on a connected Android phone. Firebase project
 `lost-and-found-9671c` accepts email-link requests, and its Hosting domain is verified as an
 Android App Link on that phone. Completing a real email-link sign-in still requires opening the
-received link. The live API and worker are not deployed; reports and ML matching are unavailable
-after sign-in until those services are reachable.
+received link. The live API and worker are not deployed; reports and matching are unavailable
+after sign-in until those services are reachable. On 24 November 2026, the `codex/mobile-nlp-results`
+branch passed `testDebugUnitTest assembleDebug` with the demo Firebase flag. This was a build and
+unit-test check; it did not exercise a device-to-emulator-to-worker session.
 
 ## Local setup (no Firebase account required)
 
@@ -21,7 +24,6 @@ Run these commands from `SemProject_MLEngine`:
 ```powershell
 py -3.12 -m venv .venv-service
 .\.venv-service\Scripts\python.exe -m pip install -r requirements-service.lock.txt
-.\.venv-service\Scripts\python.exe -m scripts.export_mobile_model
 cd firebase
 npm ci
 cd ..
@@ -46,11 +48,17 @@ Both use `LocalDemo123!`. The seed script refuses non-emulator projects.
 The Emulator UI is at http://127.0.0.1:4000 and API docs at http://127.0.0.1:8000/docs.
 Emulator data is temporary unless you explicitly export/import it with Firebase CLI.
 
-Open `C:\Users\HP\AndroidStudioProjects\MAD_project` in Android Studio and run the debug
-build on an Android emulator. Without `firebase.properties`, debug connects to the host
-through `10.0.2.2`. The API/Auth/Storage ports are 8000/9099/9199. This configuration is
-for the Android emulator; a physical device needs a deliberately configured development
-connection. Release builds never enable the emulator settings.
+From this repository root, build the demo variant with:
+
+```powershell
+.\gradlew.bat -PdemoFirebase=true testDebugUnitTest assembleDebug
+```
+
+The flag forces the fictional demo Firebase project and `http://10.0.2.2:8000` even if a local
+`firebase.properties` file exists. Auth, Firestore, Storage and API use ports 9099, 8080, 9199
+and 8000. `10.0.2.2` is Android-emulator-only; a phone needs reachable development endpoints.
+The flag does not change release builds. See [PRESENTATION_DEMO.md](PRESENTATION_DEMO.md) for
+the two-repository walkthrough.
 
 1. Sign in as the office account and record a found item using the New tab.
 2. Sign out, sign in as the student, and submit a lost item in the same category.
@@ -66,13 +74,11 @@ connection. Release builds never enable the emulator settings.
   retries from creating duplicate reports; changing the body for the same ID returns 409.
 - The worker uses a 120-second lease and retries failures up to three times. Failed jobs can
   be explicitly retried. Model failure never removes the report. Run one worker initially.
-- Same-category active candidates are scored with the existing features. More than 200
+- Active candidates are ranked with TF-IDF text similarity and rule-based evidence. More than 200
   candidates fails explicitly rather than silently evaluating a truncated set. The app shows
   up to 20 ranked suggestions; report lists are limited to 100 records per type.
-- Scores come from constructed coursework labels, not validated real-world ownership probabilities.
+- Similarity scores are lexical evidence, not validated ownership probabilities.
   No automatic release/ownership decision is made. Do not interpret this setup as model validation.
-- The model artifact is trained only on the existing campus development partition. Load only
-  trusted artifacts: joblib is not a safe format for untrusted uploaded models.
 - Firestore client writes are denied; business mutations run through authorized API endpoints.
   Admin SDK bypasses Rules, so API ownership and role checks are mandatory.
 - Photo objects are private and immutable, under the uploader's UID and request UUID. The app
@@ -129,7 +135,7 @@ the office, because only staff can record found inventory in the current backend
    Review current billing requirements before enabling Storage or deploying paid services.
 3. Deploy `firebase/firestore.rules`, `firebase/storage.rules` and indexes with an explicit
    `--project lost-and-found-9671c` once those products are provisioned.
-4. Deploy the API and worker with `FIREBASE_PROJECT_ID`, `MODEL_PATH` and Application Default
+4. Deploy the API and worker with `FIREBASE_PROJECT_ID` and Application Default
    Credentials for a dedicated service account. Unset all emulator environment variables and
    set `APP_ENV=production`. Use HTTPS for the API URL in the Android configuration.
 5. Grant staff custom claims through trusted administrative tooling. The local seed script
@@ -139,9 +145,9 @@ the office, because only staff can record found inventory in the current backend
    works on a USB-connected phone with `adb reverse tcp:8000 tcp:8000` and a compatible API
    running on the computer; no such live-project API is running now.
 
-The Dockerfile packages the API and trusted exported artifact. Deploy the worker using the same
-image with command `python -m service.worker`. The container recipe is provided but has not been
-built locally; local validation uses the Python environment and Firebase emulators.
+The Dockerfile packages the API and shared matching code. Deploy the worker using the same image
+with command `python -m service.worker`. The mobile service does not require an exported joblib
+artifact; the separate legacy classifier adapter is not used by the API or worker entry points.
 
 The code is a working integration baseline, not a finished production operations setup:
 add deployment monitoring, rate limiting, pagination, retention/deletion policy and independently
