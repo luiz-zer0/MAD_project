@@ -9,6 +9,7 @@ val firebaseSettings = Properties().apply {
     val config = rootProject.file("firebase.properties")
     if (config.exists()) config.inputStream().use { load(it) }
 }
+val demoFirebase = providers.gradleProperty("demoFirebase").orNull == "true"
 fun firebaseValue(key: String) = "\"" + firebaseSettings.getProperty(key, "").replace("\\", "\\\\").replace("\"", "\\\"") + "\""
 
 android {
@@ -33,7 +34,7 @@ android {
 
     buildTypes {
         debug {
-            if (firebaseSettings.isEmpty) {
+            if (demoFirebase || firebaseSettings.isEmpty) {
                 buildConfigField("boolean", "USE_FIREBASE_EMULATORS", "true")
                 buildConfigField("String", "FIREBASE_PROJECT_ID", "\"demo-strathmore-lost-found\"")
                 buildConfigField("String", "FIREBASE_APP_ID", "\"1:123456789:android:localdemo\"")
