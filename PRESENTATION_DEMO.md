@@ -1,39 +1,67 @@
-# Local Lost & Found demo
+# Deliverable 3: ML-first presentation and app walkthrough
 
-The connected Android app submits reports to the authenticated API in `SemProject_MLEngine`. The Firestore worker ranks active found reports with TF-IDF retrieval and knowledge agents. Results show ranked possible matches, lexical similarity and an explanation; staff verify ownership before release. The offline version 2 hybrid benchmark is not the deployed model.
+## Presentation focus
 
-Start the Firebase emulators, seed accounts, API and worker with `SemProject_MLEngine/scripts/start_local.ps1` as described in that repository's `FIREBASE_SETUP.md`. Then build in this repository:
+This is an AI-class presentation. Spend most of the 5:30 explaining the data, preparation, model choices, held-out results and what they do not prove. Use the Android app for a short supporting example of how ranked NLP suggestions reach an end user. The active worker uses TF-IDF; the Logistic Regression and hybrid results are offline benchmark comparisons.
 
-```powershell
-.\gradlew.bat -PdemoFirebase=true testDebugUnitTest assembleDebug
-```
+## Data and model facts to present
 
-The flag forces the fictional demo project and `http://10.0.2.2:8000` for an Android emulator, even when local live Firebase settings exist. The debug APK is `app/build/outputs/apk/debug/app-debug.apk`. Demo login uses seeded `demo-office@strathmore.edu` and `demo-student@strathmore.edu` with `LocalDemo123!`. The flag does not affect release builds. `10.0.2.2` is specific to an Android emulator; a physical phone needs reachable development hosts.
+- The user-provided Office transcription has 33 June–July category rows totalling 388 reported items and 24 August rows totalling 299. Its aggregate category counts are shown in `SemProject_MLEngine/notebooks/NLP_Final.ipynb`. These are quantities, not item-level reports or match labels. Verify the transcription against the Office source; the June–July small-umbrella disposal destination is blank.
+- The separate controlled benchmark has 24 fictional found reports, 27 fictional lost queries, 192 constructed pair labels (24 positive and 168 negative), and 27 evaluation queries. The held-out test has eight matched queries and two no-match queries.
+- Item groups stay within one split. Fit the text vocabulary on training data, choose settings on validation data, and use the test split only for final scores.
+- The comparison covers keyword overlap, structured attributes, Logistic Regression, TF-IDF retrieval and a hybrid. The validator checks the data structure and split boundaries; it cannot prove that constructed labels represent physical-item truth.
 
-On 23 November 2026, normal and demo debug builds and unit tests passed. The service HTTP/Firebase/worker smoke passed separately. No phone was connected, and the configured emulator could not start because C: lacked free disk space. Complete the app sign-in → found report → lost report → worker → ranked results walkthrough on a device before claiming a mobile end-to-end demonstration.
+| Method | Top-1 accuracy (matched queries) | Recall@5 | MRR | No-match false suggestions |
+| --- | ---: | ---: | ---: | ---: |
+| Keyword overlap | 0.250 (2/8) | 0.875 | 0.541 | 1/2 |
+| Structured attributes | 1.000 (8/8) | 1.000 | 1.000 | 1/2 |
+| Logistic Regression | 1.000 (8/8) | 1.000 | 1.000 | 1/2 |
+| TF-IDF | 0.250 (2/8) | 0.500 | 0.391 | 2/2 |
+| Hybrid | 1.000 (8/8) | 1.000 | 1.000 | 2/2 |
 
-## Live algorithm walkthrough
+These are small constructed-fiction results, not real campus accuracy. Perfect attribute and hybrid scores reflect fields reused by the example generator. TF-IDF misses paraphrases and produces above-cutoff suggestions for both test no-match queries. Explain Top-1 as first-place accuracy, Recall@5 as retrieval within five candidates, MRR as a measure rewarding higher ranks, and false suggestions as no-match queries above a validation-selected cutoff. Similarity is not a probability or a release decision.
 
-Use the emulator workflow above so the final Android app sends reports to the authenticated MLEngine API and the worker. Do not substitute a notebook function call or the local preview endpoint for the app demonstration.
+## Three-person run of show (5:30)
 
-1. Sign in as the seeded office account, submit a fictional found item with a clear category, date, location and description, then confirm it appears in Reports.
-2. Sign in as the seeded student account and submit a lost report for that item using a rephrased description. Refresh the report after the worker runs and open Possible matches.
-3. Show the rank, text-similarity value and fact explanation. Explain that TF-IDF matches words and short phrases, while the knowledge agents separately record category, location and date agreement, conflict or missing information. Similarity is not a probability and the app never authorizes release.
-4. Change the wording to a valid variation and compare the suggestions. Then try a distinct item such as a violet telescope. If the app shows no text candidates, explain that the inventory may be incomplete; if it shows a weak candidate, explain the lexical false-suggestion risk. Do not treat either output as proof that an item is or is not in the office.
-5. Demonstrate a rejected form by leaving the item name blank or entering fewer than three description characters. The submit action should remain unavailable. The date picker also prevents future dates; it does not accept arbitrary invalid calendar dates.
+All three team members attend with cameras on throughout.
 
-Use invented reports only. The local seed accounts and Firebase emulators do not contain institutional reports. The app's `PossibleMatchesScreen` preview is sample-only; enter through the connected authenticated workflow for the live demonstration.
-
-## Three-person quickfire plan (5:30)
-
-All three presenters attend the session with cameras on throughout, as required by the assessment brief.
-
-| Time | Presenter | Segment |
+| Time | Presenter | Focus and screen cue |
 | --- | --- | --- |
-| 0:00-0:45 | Person 1 | State the lost-and-found problem, who uses the app, and that staff make ownership decisions. Explain that the demo uses fictional records. |
-| 0:45-2:45 | Person 2 | Drive the Android app: office submits a found item, student submits a paraphrased lost report, then refreshes and opens ranked suggestions. |
-| 2:45-4:00 | Person 3 | Explain the score and fact trace. Show the wording variation and either a no-candidate result or a weak lexical suggestion; demonstrate the blocked invalid form. |
-| 4:00-5:00 | Person 1 | Show `SemProject_MLEngine/notebooks/NLP_Final.ipynb`, the Logistic Regression baseline and held-out Top-1 accuracy, Recall@5, MRR and no-match false suggestions. State that all benchmark labels are constructed fiction. |
-| 5:00-5:30 | Person 3, with Person 2 ready for questions | State the live-demo limits, confirm staff review before handover, and close. |
+| 0:00–0:25 | Person 1 | State the research question: rank found-item candidates from lost-item text while staff retain the final decision. |
+| 0:25–1:10 | Person 1 | Show the Office inventory counts and category totals. Explain that aggregate counts describe the problem, but cannot train or score item matching. |
+| 1:10–1:55 | Person 2 | Show benchmark size, quality checks and group split. Explain train-only vocabulary fitting and validation/test separation. |
+| 1:55–2:35 | Person 2 | Compare the Logistic Regression baseline with TF-IDF; explain distinctive word weights, unigrams/bigrams and cosine ranking. Name the active worker method. |
+| 2:35–3:35 | Person 3 | Present the held-out table above and define the measures. Be clear that all labels are constructed fiction. |
+| 3:35–4:20 | Person 3 | Interpret weak TF-IDF results, false suggestions, synthetic-data limits and fact-level explanation. Explain why no candidate is not proof of absence. |
+| 4:20–5:05 | Person 2 | Briefly show a rehearsed fictional found report and a paraphrased lost query in the Android app; point out the ranked output and explanation. If time permits, vary the wording or show a blocked incomplete form. |
+| 5:05–5:30 | Person 1 | Close with the need for verified item-level pairs and a rehearsed live app path; staff verify ownership and handover. |
 
-Before presenting, agree on the sample item, make sure the local emulators/API/worker are healthy, install the demo build, and rehearse the account handoffs. If the connected app path fails, disclose that clearly; do not present notebook output as evidence of a successful mobile run.
+### Short talk track
+
+**Person 1:** “Can a lost-and-found system rank useful candidates from a short report? Our Office summaries show the type and volume of unclaimed items, but they contain aggregate counts only. We keep those counts separate from the item-level benchmark.”
+
+**Person 2:** “We prepare fictional found reports and lost claims, validate the tables, and split by item group to reduce leakage. Logistic Regression is our pair-classification baseline. The connected worker uses TF-IDF to emphasize distinctive words and short phrases, then ranks candidate text by cosine similarity.”
+
+**Person 3:** “The held-out scores compare five methods, but they are not campus performance. TF-IDF ranks two of eight matched queries first and produces two strong suggestions on two no-match queries. The structured and hybrid perfect scores are a limitation of the constructed examples. The app explanation shows supporting facts; staff still decide.”
+
+For the app handoff, Person 2 signs in with the seeded Office demo account, opens a prepared fictional found report, then uses the seeded student account to submit a paraphrased lost report. Refresh after the worker runs, show the candidates and their explanation, and briefly demonstrate a valid wording variation or an incomplete form rejected by the app.
+
+## Notebook walkthrough
+
+Open `SemProject_MLEngine/notebooks/NLP_Final.ipynb` and move through:
+
+1. Task and decision boundary.
+2. Office aggregate sources, category totals and missing source field.
+3. Fictional benchmark provenance, data validation and quality checks.
+4. Grouped split and Logistic Regression baseline.
+5. TF-IDF feature preparation and cosine retrieval.
+6. Validation-based selection, held-out metrics and no-match false suggestions.
+7. Explanation behavior and limitations.
+
+## Rehearsal and evidence limits
+
+- Start Firebase emulators, the API and worker using the MLEngine local setup guide; build/install the Android demo variant and confirm both seeded accounts can sign in.
+- The Android debug build, unit tests and APK assembly passed on 24 November 2026. A device-level Android-to-Firebase-to-worker walkthrough has not been verified; rehearse it before claiming live integration.
+- Use fictional records only. Do not present Office aggregate counts as physical item examples or training labels.
+- If the connected app flow fails, say so plainly. Do not substitute notebook output or the local preview API for a successful Android demonstration.
+- Follow the instructor's approved AI-use and attribution rules, and have the team verify the Office transcription and fictional labels before submission.
