@@ -2,6 +2,8 @@
 
 This repository contains the Android client for the Strathmore Lost and Found project. It uses Firebase Authentication and the authenticated API, Firestore data model, and matching worker in [SemProject_MLEngine](https://github.com/nimrod-kobia/SemProject_MLEngine).
 
+For the live emulator walkthrough, varied and invalid input scenarios, and three-person quickfire plan, see [PRESENTATION_DEMO.md](PRESENTATION_DEMO.md).
+
 The app presents possible lost/found matches for staff and users to review. A match score is evidence for human review; it does not prove ownership or authorize release.
 
 ## Connected workflow
