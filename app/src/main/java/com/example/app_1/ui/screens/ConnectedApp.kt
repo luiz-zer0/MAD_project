@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.app_1.BuildConfig
 import com.example.app_1.R
+import com.example.app_1.data.ApiException
 import com.example.app_1.data.FirebaseRepository
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
@@ -52,7 +53,7 @@ private fun savedReportDrafts(preferences: android.content.SharedPreferences): L
 fun ConnectedApp(incomingLink: String? = null, onLinkConsumed: () -> Unit = {}) {
     val context = LocalContext.current
     val configured = BuildConfig.FIREBASE_PROJECT_ID.isNotBlank() && BuildConfig.FIREBASE_APP_ID.isNotBlank() &&
-        BuildConfig.FIREBASE_API_KEY.isNotBlank() && BuildConfig.ML_API_BASE_URL.isNotBlank()
+        BuildConfig.FIREBASE_API_KEY.isNotBlank()
     if (!configured) {
         Column(Modifier.fillMaxSize().safeDrawingPadding().padding(24.dp)) {
             Text("Lost & Found", style = MaterialTheme.typography.headlineMedium)
@@ -115,10 +116,18 @@ fun ConnectedApp(incomingLink: String? = null, onLinkConsumed: () -> Unit = {}) 
                     messageIsSuccess = true
                     "Signed in. Reports are temporarily unavailable."
                 } else if (identity == null) signInError(e) else {
-                    backendOnline = false
-                    if (page == "New" || page == "NewFound")
-                        "Couldn't submit the report. Your draft is saved on this device."
-                    else "Updates are unavailable right now. Please try again."
+                    if (e !is ApiException) backendOnline = false
+                    messageIsSuccess = false
+                    when (e) {
+                        is ApiException -> when (e.statusCode) {
+                            401 -> "Your sign-in needs refreshing. Sign out, sign in again, and retry."
+                            403 -> "Access restricted: ${e.userMessage}"
+                            else -> e.userMessage
+                        }
+                        else -> if (page == "New" || page == "NewFound")
+                            "The service is unavailable. Your draft is saved on this device; retry when connected."
+                        else "The service is unavailable right now. Check your connection and retry."
+                    }
                 }
             }
             finally { busy = false }
@@ -300,6 +309,9 @@ fun ConnectedApp(incomingLink: String? = null, onLinkConsumed: () -> Unit = {}) 
     }
     val role = identity!!.optString("role", "student")
     Column(Modifier.fillMaxSize().background(Color(0xFFF8F7F2)).safeDrawingPadding()) {
+        if (BuildConfig.ML_API_BASE_URL.isBlank()) {
+            ConnectedNotice("Service not configured", "Firebase sign-in is available, but reports and matches need ML_API_BASE_URL in firebase.properties.")
+        }
         if (page == "Home") {
             ConnectedHomeScreen(
                 email = repository.auth.currentUser?.email.orEmpty(), role = role,
@@ -357,6 +369,10 @@ fun ConnectedApp(incomingLink: String? = null, onLinkConsumed: () -> Unit = {}) 
                         message = "Role saved. Ask the person to sign in again."
                     } },
                     onExport = {
+                    if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.Q) {
+                        messageIsSuccess = false
+                        message = "Downloads export requires Android 10 or newer."
+                    } else {
                     val rows = auditEvents.map { event ->
                         RedactedAuditRow(event.optString("action"), event.optString("category_id"), event.optString("at"))
                     }
@@ -373,6 +389,7 @@ fun ConnectedApp(incomingLink: String? = null, onLinkConsumed: () -> Unit = {}) 
                             message = "Could not save the CSV. Please try again."
                         }
                     }
+                    }
                 })
                 "Inventory" -> OfficeInventory(reports, backendOnline) {
                     draftToOpen = null; reportFormNonce++; page = "NewFound"
@@ -380,10 +397,18 @@ fun ConnectedApp(incomingLink: String? = null, onLinkConsumed: () -> Unit = {}) 
                 "Candidate" -> ConnectedCandidateScreen(candidate, busy,
                     onBack = { page = "Reports" }, onClaim = { proof ->
                         val matchId = selectedMatch?.optString("id").orEmpty()
-                        run {
+                        if (!matchId.matches(Regex("^[A-Za-z0-9_-]{1,160}$"))) {
+                            message = "This suggestion is no longer available. Refresh matches and select it again."
+                            messageIsSuccess = false
+                        } else run {
                             repository.request("POST", "/v1/matches/$matchId/claim", JSONObject().put("ownership_details", proof))
+                            messageIsSuccess = true
                             message = "Ownership request sent to the office."
-                            refresh(); page = "Reports"; selectedMatch = null
+                            page = "Reports"; selectedMatch = null; candidate = null
+                            runCatching { refresh() }.onFailure {
+                                backendOnline = false
+                                message = "Ownership request sent. Reports could not refresh; try Refresh updates."
+                            }
                         }
                     })
                 "ClaimStatus" -> selectedClaim?.let { claim -> ConnectedClaimStatusScreen(claim, receipt) {
@@ -401,6 +426,7 @@ fun ConnectedApp(incomingLink: String? = null, onLinkConsumed: () -> Unit = {}) 
                     OutlinedButton(onClick = {
                         repository.auth.signOut(); identity = null; page = "Home"
                         reports = emptyList(); matches = emptyList(); claims = emptyList(); notifications = emptyList()
+                        selected = null; selectedMatch = null; candidate = null; selectedClaim = null; receipt = null
                     }) { Text("Sign out") }
                 }
                 "New", "NewFound" -> key(identity!!.getString("uid"), page, draftToOpen, reportFormNonce) {
@@ -408,11 +434,15 @@ fun ConnectedApp(incomingLink: String? = null, onLinkConsumed: () -> Unit = {}) 
                         initialFound = page == "NewFound", draftKey = draftToOpen,
                         onStartAnother = {
                             draftToOpen = null; reportFormNonce++
-                        }) {
-                        message = "Report saved: $it. Matching will run separately."
+                        }, onSaved = { reportId ->
+                        message = "Report saved: $reportId. Matching will run separately."
+                        messageIsSuccess = true
                         page = if (staff) "Inventory" else "Reports"
-                        refresh()
-                    }
+                        runCatching { refresh() }.onFailure {
+                            backendOnline = false
+                            message = "Report saved: $reportId. Reports could not refresh; try Refresh updates."
+                        }
+                    })
                 }
                 "FoundHelp" -> {
                     Text("I found something", color = Color(0xFF112B4B), fontSize = 22.sp, fontWeight = FontWeight.Bold)
@@ -570,12 +600,16 @@ fun ConnectedApp(incomingLink: String? = null, onLinkConsumed: () -> Unit = {}) 
                     pendingDecision = null
                     run {
                         repository.request("POST", "/v1/claims/$claimId/decision", JSONObject().put("status", action))
-                        message = "Review saved."; refresh()
+                        message = "Review saved."; messageIsSuccess = true
                         selectedClaim = claims.firstOrNull { it.optString("id") == claimId }
                         if (action == "approved") page = "Handover"
                         if (action == "collected") {
-                            receipt = repository.request("GET", "/v1/claims/$claimId/receipt")
                             page = "Handover"
+                            runCatching { receipt = repository.request("GET", "/v1/claims/$claimId/receipt") }
+                        }
+                        runCatching { refresh() }.onFailure {
+                            backendOnline = false
+                            message = "Review saved. Updates could not refresh; try Refresh updates."
                         }
                     }
                 }) { Text("Confirm") } },

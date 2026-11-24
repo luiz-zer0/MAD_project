@@ -5,6 +5,7 @@ import android.content.Context
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
+import androidx.annotation.RequiresApi
 
 internal data class RedactedAuditRow(val action: String, val category: String, val time: String)
 
@@ -21,8 +22,8 @@ internal fun redactedAuditCsv(rows: List<RedactedAuditRow>): String = buildStrin
 }
 
 /** Saves only action, category and time to the device's Downloads collection. */
+@RequiresApi(Build.VERSION_CODES.Q)
 internal fun saveAuditCsvToDownloads(context: Context, csv: String): String {
-    require(Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) { "Downloads export requires Android 10 or newer" }
     val name = "lost-found-audit-${System.currentTimeMillis()}.csv"
     val values = ContentValues().apply {
         put(MediaStore.MediaColumns.DISPLAY_NAME, name)

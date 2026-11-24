@@ -1,4 +1,9 @@
 import java.util.Properties
+import java.net.URI
+import org.gradle.api.DefaultTask
+import org.gradle.api.provider.Property
+import org.gradle.api.tasks.Input
+import org.gradle.api.tasks.TaskAction
 
 plugins {
     alias(libs.plugins.android.application)
@@ -11,6 +16,36 @@ val firebaseSettings = Properties().apply {
 }
 val demoFirebase = providers.gradleProperty("demoFirebase").orNull == "true"
 fun firebaseValue(key: String) = "\"" + firebaseSettings.getProperty(key, "").replace("\\", "\\\\").replace("\"", "\\\"") + "\""
+abstract class ValidateReleaseApiConfiguration : DefaultTask() {
+    @get:Input
+    abstract val firebaseConfigPath: Property<String>
+
+    @TaskAction
+    fun validate() {
+        val configFile = File(firebaseConfigPath.get())
+        require(configFile.isFile) {
+            "Release builds require firebase.properties with the deployed API URL and approved Firebase project."
+        }
+        val settings = Properties().apply { configFile.inputStream().use { load(it) } }
+        val endpoint = settings.getProperty("ML_API_BASE_URL", "").trim()
+        val uri = runCatching { URI(endpoint) }.getOrNull()
+        val host = uri?.host?.lowercase().orEmpty()
+        require(uri?.scheme == "https" && host.isNotBlank() &&
+            host !in setOf("localhost", "127.0.0.1", "10.0.2.2") &&
+            host != "your-deployed-api.example") {
+            "Release builds require ML_API_BASE_URL to be the verified deployed HTTPS API URL in firebase.properties."
+        }
+        require(settings.getProperty("FIREBASE_PROJECT_ID", "") == "lost-and-found-9671c") {
+            "Release builds must use the approved Firebase project lost-and-found-9671c."
+        }
+    }
+}
+val validateReleaseApi = tasks.register<ValidateReleaseApiConfiguration>("validateReleaseApiConfiguration") {
+    firebaseConfigPath.set(rootProject.file("firebase.properties").absolutePath)
+}
+tasks.configureEach {
+    if (name == "preReleaseBuild") dependsOn(validateReleaseApi)
+}
 
 android {
     namespace = "com.example.app_1"

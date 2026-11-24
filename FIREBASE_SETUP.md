@@ -59,6 +59,12 @@ ports are 8000/9099/9199. This configuration is
 for the Android emulator; a physical device needs a deliberately configured development
 connection. Release builds never enable the emulator settings.
 
+Release builds require `firebase.properties` to contain the real `lost-and-found-9671c`
+project and the verified deployed API's HTTPS URL. The example hostname is only a placeholder;
+the release validation task rejects placeholders, localhost, and emulator addresses. The app
+shows backend HTTP validation and permission messages, retries one 401 after refreshing the
+Firebase ID token, and keeps a saved report's success status if a later refresh fails.
+
 1. Sign in as the office account and record a found item using the New tab.
 2. Sign out, sign in as the student, and submit a lost item in the same category.
 3. Refresh Reports after the worker runs, then review suggestions and request ownership review.

@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />
 
@@ -34,58 +33,6 @@
                 <data android:scheme="https" android:host="lost-and-found-9671c.firebaseapp.com" android:pathPrefix="/__/auth/links" />
             </intent-filter>
         </activity>
-        <activity
-            android:name=".SignUpActivity"
-            android:exported="false" />
-        <activity
-            android:name=".StudentActivity"
-            android:exported="false"
-            android:launchMode="singleTop" />
-        <activity
-            android:name=".OfficeActivity"
-            android:exported="false"
-            android:launchMode="singleTop" />
-
-        <!-- Student flow -->
-        <activity
-            android:name=".ReportLostActivity"
-            android:exported="false" />
-        <activity
-            android:name=".ReportFoundActivity"
-            android:exported="false" />
-        <activity
-            android:name=".CategoryDetailsActivity"
-            android:exported="false" />
-        <activity
-            android:name=".CandidateDetailActivity"
-            android:exported="false" />
-        <activity
-            android:name=".ClaimStatusActivity"
-            android:exported="false" />
-
-        <!-- Office flow -->
-        <activity
-            android:name=".FoundItemCheckInActivity"
-            android:exported="false" />
-        <activity
-            android:name=".SensitiveItemCheckInActivity"
-            android:exported="false" />
-        <activity
-            android:name=".OwnershipVerificationActivity"
-            android:exported="false" />
-        <activity
-            android:name=".PickupHandoverActivity"
-            android:exported="false" />
-        <activity
-            android:name=".UnclaimedItemsActivity"
-            android:exported="false" />
-        <activity
-            android:name=".CategoryRulesActivity"
-            android:exported="false" />
-        <activity
-            android:name=".AccessAuditActivity"
-            android:exported="false" />
-
     </application>
 
 </manifest>
