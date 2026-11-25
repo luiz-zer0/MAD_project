@@ -31,6 +31,7 @@ abstract class ValidateReleaseApiConfiguration : DefaultTask() {
         val uri = runCatching { URI(endpoint) }.getOrNull()
         val host = uri?.host?.lowercase().orEmpty()
         require(uri?.scheme == "https" && host.isNotBlank() &&
+            uri.rawUserInfo == null && uri.rawQuery == null && uri.rawFragment == null &&
             host !in setOf("localhost", "127.0.0.1", "10.0.2.2") &&
             host != "your-deployed-api.example") {
             "Release builds require ML_API_BASE_URL to be the verified deployed HTTPS API URL in firebase.properties."
@@ -38,6 +39,9 @@ abstract class ValidateReleaseApiConfiguration : DefaultTask() {
         require(settings.getProperty("FIREBASE_PROJECT_ID", "") == "lost-and-found-9671c") {
             "Release builds must use the approved Firebase project lost-and-found-9671c."
         }
+        require(listOf("FIREBASE_APP_ID", "FIREBASE_API_KEY").all {
+            !settings.getProperty(it, "").isNullOrBlank()
+        }) { "Release builds require FIREBASE_APP_ID and FIREBASE_API_KEY in firebase.properties." }
     }
 }
 val validateReleaseApi = tasks.register<ValidateReleaseApiConfiguration>("validateReleaseApiConfiguration") {

@@ -139,7 +139,7 @@ class FirebaseRepository(context: Context) {
 
     private suspend fun requestWithToken(method: String, path: String, body: JSONObject?, token: String): JSONObject =
         withContext(Dispatchers.IO) {
-            val baseUrl = BuildConfig.ML_API_BASE_URL.trimEnd('/')
+            val baseUrl = BuildConfig.ML_API_BASE_URL.trim().trimEnd('/')
             if (baseUrl.isBlank()) throw IOException("The Lost & Found service URL is not configured.")
             val url = URL(baseUrl + path)
             val debugLoopback = BuildConfig.DEBUG && url.protocol == "http" &&
