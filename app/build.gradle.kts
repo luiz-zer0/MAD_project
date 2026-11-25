@@ -15,10 +15,14 @@ val firebaseSettings = Properties().apply {
     if (config.exists()) config.inputStream().use { load(it) }
 }
 val demoFirebase = providers.gradleProperty("demoFirebase").orNull == "true"
+val demoHost = providers.gradleProperty("demoHost").orElse("10.0.2.2").get()
+require(demoHost in setOf("10.0.2.2", "127.0.0.1")) { "Invalid local demo host" }
+
 fun firebaseValue(key: String) = "\"" + firebaseSettings.getProperty(key, "").replace("\\", "\\\\").replace("\"", "\\\"") + "\""
+
 abstract class ValidateReleaseApiConfiguration : DefaultTask() {
     @get:Input
-    abstract val firebaseConfigPath: Property<String>
+   abstract val firebaseConfigPath: Property<String>
 
     @TaskAction
     fun validate() {
@@ -44,6 +48,7 @@ abstract class ValidateReleaseApiConfiguration : DefaultTask() {
         }) { "Release builds require FIREBASE_APP_ID and FIREBASE_API_KEY in firebase.properties." }
     }
 }
+
 val validateReleaseApi = tasks.register<ValidateReleaseApiConfiguration>("validateReleaseApiConfiguration") {
     firebaseConfigPath.set(rootProject.file("firebase.properties").absolutePath)
 }
@@ -79,7 +84,7 @@ android {
                 buildConfigField("String", "FIREBASE_APP_ID", "\"1:123456789:android:localdemo\"")
                 buildConfigField("String", "FIREBASE_API_KEY", "\"demo-api-key-not-a-secret\"")
                 buildConfigField("String", "FIREBASE_STORAGE_BUCKET", "\"demo-strathmore-lost-found.appspot.com\"")
-                buildConfigField("String", "ML_API_BASE_URL", "\"http://10.0.2.2:8000\"")
+                buildConfigField("String", "ML_API_BASE_URL", "\"http://$demoHost:8000\"")
             }
         }
         release {
@@ -104,6 +109,7 @@ dependencies {
     implementation("com.google.firebase:firebase-storage")
     implementation("com.google.firebase:firebase-messaging")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.10.2")
+
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.compose.material3)
@@ -114,11 +120,14 @@ dependencies {
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
+
     testImplementation(libs.junit)
+
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.junit)
+
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     debugImplementation(libs.androidx.compose.ui.tooling)
 }
