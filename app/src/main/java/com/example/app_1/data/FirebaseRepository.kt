@@ -56,8 +56,10 @@ class FirebaseRepository(context: Context) {
     init {
         if (BuildConfig.USE_FIREBASE_EMULATORS) {
             check(BuildConfig.DEBUG && BuildConfig.FIREBASE_PROJECT_ID.startsWith("demo-"))
-            auth.val host = URL(BuildConfig.ML_API_BASE_URL).host         check(host in setOf("10.0.2.2", "127.0.0.1"))         auth.useEmulator(host, 9099)         storage.useEmulator(host, 9199) 9099)
-            storage.val host = URL(BuildConfig.ML_API_BASE_URL).host         check(host in setOf("10.0.2.2", "127.0.0.1"))         auth.useEmulator(host, 9099)         storage.useEmulator(host, 9199) 9199)
+            val host = URL(BuildConfig.ML_API_BASE_URL).host
+            check(host in setOf("10.0.2.2", "127.0.0.1"))
+            auth.useEmulator(host, 9099)
+            storage.useEmulator(host, 9199)
         }
     }
 

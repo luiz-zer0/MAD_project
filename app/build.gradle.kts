@@ -18,11 +18,11 @@ val demoFirebase = providers.gradleProperty("demoFirebase").orNull == "true"
 val demoHost = providers.gradleProperty("demoHost").orElse("10.0.2.2").get()
 require(demoHost in setOf("10.0.2.2", "127.0.0.1")) { "Invalid local demo host" }
 
-fun firebaseValue(key: String) = "\"" + firebaseSettings.getProperty(key, "").replace("\"", "\\\"").replace("\"", "\\\"") + "\""
+fun firebaseValue(key: String) = "\"" + firebaseSettings.getProperty(key, "").replace("\\", "\\\\").replace("\"", "\\\"") + "\""
 
 abstract class ValidateReleaseApiConfiguration : DefaultTask() {
     @get:Input
-    abstract val firebaseConfigPath: Property&lt;String&gt;
+   abstract val firebaseConfigPath: Property<String>
 
     @TaskAction
     fun validate() {
@@ -45,7 +45,7 @@ abstract class ValidateReleaseApiConfiguration : DefaultTask() {
     }
 }
 
-val validateReleaseApi = tasks.register&lt;ValidateReleaseApiConfiguration&gt;("validateReleaseApiConfiguration") {
+val validateReleaseApi = tasks.register<ValidateReleaseApiConfiguration>("validateReleaseApiConfiguration") {
     firebaseConfigPath.set(rootProject.file("firebase.properties").absolutePath)
 }
 tasks.configureEach {
