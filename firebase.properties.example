@@ -8,4 +8,5 @@ FIREBASE_API_KEY=
 FIREBASE_STORAGE_BUCKET=
 # For a USB-connected debug device, use adb reverse tcp:8000 tcp:8000 and:
 # ML_API_BASE_URL=http://127.0.0.1:8000
+# Replace with the real HTTPS endpoint after deployment. Release builds reject placeholders and loopback URLs.
 ML_API_BASE_URL=https://your-deployed-api.example

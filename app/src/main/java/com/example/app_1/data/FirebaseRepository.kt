@@ -12,6 +12,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
+import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
 
@@ -22,7 +23,7 @@ class FirebaseRepository(context: Context) {
         context, FirebaseOptions.Builder()
             .setProjectId(BuildConfig.FIREBASE_PROJECT_ID)
             .setApplicationId(BuildConfig.FIREBASE_APP_ID)
-            .setGcmSenderId(BuildConfig.FIREBASE_APP_ID.split(":").getOrElse(1) { "" })
+ .setGcmSenderId(BuildConfig.FIREBASE_APP_ID.split(":").getOrElse(1) { "" })
             .setApiKey(BuildConfig.FIREBASE_API_KEY)
             .setStorageBucket(BuildConfig.FIREBASE_STORAGE_BUCKET).build())
     val auth: FirebaseAuth = FirebaseAuth.getInstance(app)
@@ -30,9 +31,9 @@ class FirebaseRepository(context: Context) {
 
     suspend fun sendEmailLink(email: String) {
         val address = email.trim().lowercase()
-        require(address.endsWith("@strathmore.edu")) { "Use your Strathmore email address." }
+ require(address.endsWith("@strathmore.edu")) { "Use your Strathmore email address." }
         val settings = ActionCodeSettings.newBuilder()
-            .setUrl("https://${BuildConfig.FIREBASE_PROJECT_ID}.firebaseapp.com/finishSignIn")
+ .setUrl("https://${BuildConfig.FIREBASE_PROJECT_ID}.firebaseapp.com/finishSignIn")
             .setHandleCodeInApp(true)
             .setAndroidPackageName("com.example.app_1", false, null)
             .build()
@@ -55,8 +56,10 @@ class FirebaseRepository(context: Context) {
     init {
         if (BuildConfig.USE_FIREBASE_EMULATORS) {
             check(BuildConfig.DEBUG && BuildConfig.FIREBASE_PROJECT_ID.startsWith("demo-"))
-            auth.useEmulator("10.0.2.2", 9099)
-            storage.useEmulator("10.0.2.2", 9199)
+            val host = URL(BuildConfig.ML_API_BASE_URL).host
+            check(host in setOf("10.0.2.2", "127.0.0.1"))
+            auth.useEmulator(host, 9099)
+            storage.useEmulator(host, 9199)
         }
     }
 
@@ -122,13 +125,29 @@ class FirebaseRepository(context: Context) {
     suspend fun photo(path: String): ByteArray = storage.reference.child(path).getBytes(5L * 1024 * 1024).await()
 
     suspend fun request(method: String, path: String, body: JSONObject? = null): JSONObject {
-        val token = auth.currentUser?.getIdToken(false)?.await()?.token ?: error("Sign in first.")
-        return withContext(Dispatchers.IO) {
-            val url = URL(BuildConfig.ML_API_BASE_URL.trimEnd('/') + path)
+        var forceRefresh = false
+        repeat(2) { attempt ->
+            val token = auth.currentUser?.getIdToken(forceRefresh)?.await()?.token
+                ?: throw ApiException(401, "Sign in first.")
+            try {
+                return requestWithToken(method, path, body, token)
+            } catch (error: ApiException) {
+                if (error.statusCode != 401 || attempt > 0) throw error
+                forceRefresh = true
+            }
+        }
+        throw ApiException(401, "Your sign-in expired. Sign in again and retry.")
+    }
+
+    private suspend fun requestWithToken(method: String, path: String, body: JSONObject?, token: String): JSONObject =
+        withContext(Dispatchers.IO) {
+            val baseUrl = BuildConfig.ML_API_BASE_URL.trim().trimEnd('/')
+            if (baseUrl.isBlank()) throw IOException("The Lost & Found service URL is not configured.")
+            val url = URL(baseUrl + path)
             val debugLoopback = BuildConfig.DEBUG && url.protocol == "http" &&
                 url.host in setOf("127.0.0.1", "10.0.2.2")
-            check(url.protocol == "https" || debugLoopback) {
-                "The deployed API must use HTTPS; debug builds may use local loopback."
+            if (url.protocol != "https" && !debugLoopback) {
+                throw IOException("The deployed API must use HTTPS; debug builds may use local loopback.")
             }
             val connection = url.openConnection() as HttpURLConnection
             try {
@@ -142,15 +161,45 @@ class FirebaseRepository(context: Context) {
                     connection.setRequestProperty("Content-Type", "application/json")
                     connection.outputStream.use { it.write(body.toString().toByteArray(Charsets.UTF_8)) }
                 }
-                val success = connection.responseCode in 200..299
-                val text = (if (success) connection.inputStream else connection.errorStream)
+                val status = connection.responseCode
+                val text = (if (status in 200..299) connection.inputStream else connection.errorStream)
                     ?.bufferedReader()?.use { it.readText() }.orEmpty()
-                val result = if (text.isBlank()) JSONObject() else JSONObject(text)
-                if (!success) error(result.optString("detail", "Request failed (${connection.responseCode})"))
-                result
+                if (status !in 200..299) throw apiException(status, text)
+                if (text.isBlank()) JSONObject() else JSONObject(text)
             } finally {
                 connection.disconnect()
             }
         }
+
+    private fun apiException(status: Int, response: String): ApiException {
+        val detail = runCatching { JSONObject(response).opt("detail") }.getOrNull()
+        val fields = linkedMapOf<String, String>()
+        val message = when (detail) {
+            is org.json.JSONArray -> {
+                for (index in 0 until detail.length()) {
+                    val item = detail.optJSONObject(index) ?: continue
+                    val path = item.optJSONArray("loc")
+                    val field = if (path == null || path.length() == 0) "request" else
+                        (1 until path.length()).joinToString(".") { path.optString(it) }.ifBlank { "request" }
+                    val error = item.optString("msg", "Invalid value")
+                    fields[field] = error
+                }
+                fields.entries.joinToString("; ") { "${it.key}: ${it.value}" }
+                    .ifBlank { "The request contains invalid information." }
+            }
+            is String -> detail.takeIf { it.isNotBlank() } ?: defaultApiMessage(status)
+            else -> defaultApiMessage(status)
+        }
+        return ApiException(status, message, fields)
+    }
+
+    private fun defaultApiMessage(status: Int): String = when (status) {
+        401 -> "Your sign-in expired. Sign in again and retry."
+        403 -> "Your account does not have permission for this action."
+        404 -> "The requested item is no longer available."
+        409 -> "This request conflicts with a newer update. Refresh and review it."
+        422 -> "Check the highlighted information and try again."
+        in 500..599 -> "The service could not complete this request. Try again shortly."
+        else -> "The request failed (HTTP $status)."
     }
 }
